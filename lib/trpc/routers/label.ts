@@ -1,5 +1,6 @@
 import { z } from "zod/v4"
 
+import { logActivity } from "@/lib/activity"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const labelRouter = router({
@@ -62,14 +63,26 @@ export const labelRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.update({
+      const card = await ctx.prisma.card.update({
         where: { id: input.cardId },
         data: {
           labels: {
             connect: { id: input.labelId },
           },
         },
+        include: { column: { select: { boardId: true } } },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "LABEL_ADDED",
+        entityType: "Card",
+        entityId: input.cardId,
+        metadata: { labelId: input.labelId, cardId: input.cardId },
+      })
+
+      return card
     }),
 
   removeFromCard: protectedProcedure
@@ -80,13 +93,25 @@ export const labelRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.update({
+      const card = await ctx.prisma.card.update({
         where: { id: input.cardId },
         data: {
           labels: {
             disconnect: { id: input.labelId },
           },
         },
+        include: { column: { select: { boardId: true } } },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "LABEL_REMOVED",
+        entityType: "Card",
+        entityId: input.cardId,
+        metadata: { labelId: input.labelId, cardId: input.cardId },
+      })
+
+      return card
     }),
 })

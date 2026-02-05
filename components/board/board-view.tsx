@@ -5,11 +5,12 @@ import {
   Droppable,
   type DropResult,
 } from "@hello-pangea/dnd"
-import { Plus, Settings } from "lucide-react"
+import { Activity, Plus, Settings } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { ActivityPanel } from "@/components/board/activity-panel"
 import { CardModal } from "@/components/board/card-modal"
 import { BoardColumn } from "@/components/board/column"
 import { Button } from "@/components/ui/button"
@@ -52,6 +53,7 @@ export function BoardView({ board }: BoardViewProps) {
   const utils = api.useUtils()
   const [columns, setColumns] = useState(board.columns)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [showActivity, setShowActivity] = useState(false)
 
   // Sync columns when board data refreshes (e.g. after card update)
   useEffect(() => {
@@ -163,43 +165,61 @@ export function BoardView({ board }: BoardViewProps) {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
         <h1 className="truncate text-xl font-semibold">{board.name}</h1>
-        <Link href={`/boards/${board.id}/settings`}>
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <Button
+            variant={showActivity ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setShowActivity(!showActivity)}
+          >
+            <Activity className="h-4 w-4" />
           </Button>
-        </Link>
+          <Link href={`/boards/${board.id}/settings`}>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto p-3 sm:p-6">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable
-            droppableId="board"
-            type="column"
-            direction="horizontal"
-          >
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="flex gap-4"
-              >
-                {columns.map((column, index) => (
-                  <BoardColumn
-                    key={column.id}
-                    column={column}
-                    index={index}
-                    boardId={board.id}
-                    onCardClick={(cardId) => setSelectedCardId(cardId)}
-                  />
-                ))}
-                {provided.placeholder}
-                <div className="w-[17rem] shrink-0 sm:w-72">
-                  <AddColumnButton boardId={board.id} />
+      <div className="flex min-h-0 flex-1">
+        <div className="flex-1 overflow-x-auto p-3 sm:p-6">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable
+              droppableId="board"
+              type="column"
+              direction="horizontal"
+            >
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="flex gap-4"
+                >
+                  {columns.map((column, index) => (
+                    <BoardColumn
+                      key={column.id}
+                      column={column}
+                      index={index}
+                      boardId={board.id}
+                      onCardClick={(cardId) => setSelectedCardId(cardId)}
+                    />
+                  ))}
+                  {provided.placeholder}
+                  <div className="w-[17rem] shrink-0 sm:w-72">
+                    <AddColumnButton boardId={board.id} />
+                  </div>
                 </div>
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </div>
+
+        {showActivity && (
+          <ActivityPanel
+            boardId={board.id}
+            onClose={() => setShowActivity(false)}
+          />
+        )}
       </div>
 
       {selectedCardId && (

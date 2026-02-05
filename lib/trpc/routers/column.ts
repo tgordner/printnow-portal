@@ -1,5 +1,6 @@
 import { z } from "zod/v4"
 
+import { logActivity } from "@/lib/activity"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const columnRouter = router({
@@ -17,7 +18,7 @@ export const columnRouter = router({
         orderBy: { position: "desc" },
       })
 
-      return ctx.prisma.column.create({
+      const column = await ctx.prisma.column.create({
         data: {
           boardId: input.boardId,
           name: input.name,
@@ -25,6 +26,17 @@ export const columnRouter = router({
           position: lastColumn ? lastColumn.position + 1 : 0,
         },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: input.boardId,
+        userId: ctx.dbUser.id,
+        action: "COLUMN_CREATED",
+        entityType: "Column",
+        entityId: column.id,
+        metadata: { name: input.name },
+      })
+
+      return column
     }),
 
   update: protectedProcedure
@@ -46,9 +58,20 @@ export const columnRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.column.delete({
+      const column = await ctx.prisma.column.delete({
         where: { id: input.id },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: column.boardId,
+        userId: ctx.dbUser.id,
+        action: "COLUMN_DELETED",
+        entityType: "Column",
+        entityId: input.id,
+        metadata: { name: column.name },
+      })
+
+      return column
     }),
 
   reorder: protectedProcedure

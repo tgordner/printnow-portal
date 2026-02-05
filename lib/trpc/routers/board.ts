@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod/v4"
 
+import { logActivity } from "@/lib/activity"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const boardRouter = router({
@@ -196,12 +197,23 @@ export const boardRouter = router({
         })
       }
 
-      return ctx.prisma.boardMember.create({
+      const member = await ctx.prisma.boardMember.create({
         data: {
           boardId: input.boardId,
           userId: input.userId,
         },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: input.boardId,
+        userId: ctx.dbUser.id,
+        action: "MEMBER_ADDED",
+        entityType: "BoardMember",
+        entityId: member.id,
+        metadata: { memberId: input.userId },
+      })
+
+      return member
     }),
 
   removeMember: protectedProcedure
@@ -228,7 +240,7 @@ export const boardRouter = router({
         })
       }
 
-      return ctx.prisma.boardMember.delete({
+      const removed = await ctx.prisma.boardMember.delete({
         where: {
           boardId_userId: {
             boardId: input.boardId,
@@ -236,5 +248,16 @@ export const boardRouter = router({
           },
         },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: input.boardId,
+        userId: ctx.dbUser.id,
+        action: "MEMBER_REMOVED",
+        entityType: "BoardMember",
+        entityId: removed.id,
+        metadata: { memberId: input.userId },
+      })
+
+      return removed
     }),
 })

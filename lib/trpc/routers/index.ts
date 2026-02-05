@@ -1,5 +1,6 @@
 import { router } from "@/lib/trpc/server"
 
+import { activityRouter } from "./activity"
 import { boardRouter } from "./board"
 import { cardRouter } from "./card"
 import { columnRouter } from "./column"
@@ -10,6 +11,7 @@ import { organizationRouter } from "./organization"
 import { userRouter } from "./user"
 
 export const appRouter = router({
+  activity: activityRouter,
   board: boardRouter,
   card: cardRouter,
   column: columnRouter,

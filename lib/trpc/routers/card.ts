@@ -1,5 +1,6 @@
 import { z } from "zod/v4"
 
+import { logActivity } from "@/lib/activity"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const cardRouter = router({
@@ -35,7 +36,7 @@ export const cardRouter = router({
         orderBy: { position: "desc" },
       })
 
-      return ctx.prisma.card.create({
+      const card = await ctx.prisma.card.create({
         data: {
           columnId: input.columnId,
           creatorId: ctx.dbUser.id,
@@ -44,6 +45,23 @@ export const cardRouter = router({
           position: lastCard ? lastCard.position + 1 : 0,
         },
       })
+
+      const column = await ctx.prisma.column.findUnique({
+        where: { id: input.columnId },
+        select: { boardId: true },
+      })
+      if (column) {
+        logActivity(ctx.prisma, {
+          boardId: column.boardId,
+          userId: ctx.dbUser.id,
+          action: "CARD_CREATED",
+          entityType: "Card",
+          entityId: card.id,
+          metadata: { title: input.title },
+        })
+      }
+
+      return card
     }),
 
   update: protectedProcedure
@@ -60,10 +78,23 @@ export const cardRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
-      return ctx.prisma.card.update({
+      const card = await ctx.prisma.card.update({
         where: { id },
         data,
+        include: { column: { select: { boardId: true } } },
       })
+
+      const changedFields = Object.keys(data).filter((k) => k !== "id")
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "CARD_UPDATED",
+        entityType: "Card",
+        entityId: card.id,
+        metadata: { fields: changedFields },
+      })
+
+      return card
     }),
 
   move: protectedProcedure
@@ -75,21 +106,54 @@ export const cardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.update({
+      const oldCard = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        select: { columnId: true, column: { select: { boardId: true } } },
+      })
+
+      const card = await ctx.prisma.card.update({
         where: { id: input.cardId },
         data: {
           columnId: input.columnId,
           position: input.position,
         },
       })
+
+      if (oldCard && oldCard.columnId !== input.columnId) {
+        logActivity(ctx.prisma, {
+          boardId: oldCard.column.boardId,
+          userId: ctx.dbUser.id,
+          action: "CARD_MOVED",
+          entityType: "Card",
+          entityId: card.id,
+          metadata: {
+            fromColumnId: oldCard.columnId,
+            toColumnId: input.columnId,
+          },
+        })
+      }
+
+      return card
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.delete({
+      const card = await ctx.prisma.card.delete({
         where: { id: input.id },
+        include: { column: { select: { boardId: true } } },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "CARD_DELETED",
+        entityType: "Card",
+        entityId: input.id,
+        metadata: { title: card.title },
+      })
+
+      return card
     }),
 
   addAssignee: protectedProcedure
@@ -100,14 +164,26 @@ export const cardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.update({
+      const card = await ctx.prisma.card.update({
         where: { id: input.cardId },
         data: {
           assignees: {
             connect: { id: input.userId },
           },
         },
+        include: { column: { select: { boardId: true } } },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "ASSIGNEE_ADDED",
+        entityType: "Card",
+        entityId: input.cardId,
+        metadata: { assigneeId: input.userId },
+      })
+
+      return card
     }),
 
   removeAssignee: protectedProcedure
@@ -118,14 +194,26 @@ export const cardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.card.update({
+      const card = await ctx.prisma.card.update({
         where: { id: input.cardId },
         data: {
           assignees: {
             disconnect: { id: input.userId },
           },
         },
+        include: { column: { select: { boardId: true } } },
       })
+
+      logActivity(ctx.prisma, {
+        boardId: card.column.boardId,
+        userId: ctx.dbUser.id,
+        action: "ASSIGNEE_REMOVED",
+        entityType: "Card",
+        entityId: input.cardId,
+        metadata: { assigneeId: input.userId },
+      })
+
+      return card
     }),
 
   addComment: protectedProcedure
@@ -136,7 +224,7 @@ export const cardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.comment.create({
+      const comment = await ctx.prisma.comment.create({
         data: {
           cardId: input.cardId,
           userId: ctx.dbUser.id,
@@ -144,5 +232,22 @@ export const cardRouter = router({
         },
         include: { user: true },
       })
+
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        select: { column: { select: { boardId: true } } },
+      })
+      if (card) {
+        logActivity(ctx.prisma, {
+          boardId: card.column.boardId,
+          userId: ctx.dbUser.id,
+          action: "COMMENT_ADDED",
+          entityType: "Comment",
+          entityId: comment.id,
+          metadata: { cardId: input.cardId },
+        })
+      }
+
+      return comment
     }),
 })
