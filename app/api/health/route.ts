@@ -1,28 +1,52 @@
-import { prisma } from "@/lib/prisma"
+import { PrismaClient } from "@prisma/client"
 import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+  const prismaUrl = process.env.PRISMA_DATABASE_URL
+  const dbUrl = process.env.DATABASE_URL
+
+  // Log all env var details
+  const info: Record<string, unknown> = {
+    PRISMA_DATABASE_URL: prismaUrl ? `set (${prismaUrl.length} chars)` : "MISSING",
+    DATABASE_URL: dbUrl ? `set (${dbUrl.length} chars)` : "MISSING",
+  }
+
+  // Show hosts
+  for (const [name, val] of [["PRISMA_DATABASE_URL", prismaUrl], ["DATABASE_URL", dbUrl]] as const) {
+    if (val) {
+      try {
+        const u = new URL(val)
+        info[`${name}_host`] = u.host
+        info[`${name}_user`] = u.username
+      } catch {
+        info[`${name}_host`] = "PARSE_ERROR"
+      }
+    }
+  }
+
+  // Create a FRESH PrismaClient with explicit URL
+  const url = prismaUrl || dbUrl
+  if (!url) {
+    return NextResponse.json({ status: "error", message: "No database URL", info })
+  }
+
   try {
-    const userCount = await prisma.user.count()
-    const boardCount = await prisma.board.count()
-    const orgCount = await prisma.organization.count()
+    const freshPrisma = new PrismaClient({
+      datasources: { db: { url } },
+    })
+    const userCount = await freshPrisma.user.count()
+    const boardCount = await freshPrisma.board.count()
+    await freshPrisma.$disconnect()
 
     return NextResponse.json({
       status: "ok",
-      database: "connected",
-      counts: { users: userCount, boards: boardCount, organizations: orgCount },
-      env: {
-        PRISMA_DATABASE_URL_set: !!process.env.PRISMA_DATABASE_URL,
-        DATABASE_URL_set: !!process.env.DATABASE_URL,
-      },
+      counts: { users: userCount, boards: boardCount },
+      info,
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
-    return NextResponse.json(
-      { status: "error", message },
-      { status: 500 }
-    )
+    return NextResponse.json({ status: "error", message, info }, { status: 500 })
   }
 }
