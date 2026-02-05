@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod/v4"
 
 import { logActivity } from "@/lib/activity"
+import { deleteStorageFiles } from "@/lib/storage"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const boardRouter = router({
@@ -129,6 +130,13 @@ export const boardRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Clean up storage files for all attachments in this board
+      const attachments = await ctx.prisma.attachment.findMany({
+        where: { card: { column: { boardId: input.id } } },
+        select: { storagePath: true },
+      })
+      deleteStorageFiles(attachments.map((a) => a.storagePath))
+
       return ctx.prisma.board.delete({
         where: { id: input.id },
       })

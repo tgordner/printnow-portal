@@ -1,6 +1,7 @@
 import { z } from "zod/v4"
 
 import { logActivity } from "@/lib/activity"
+import { deleteStorageFiles } from "@/lib/storage"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const columnRouter = router({
@@ -58,6 +59,13 @@ export const columnRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Clean up storage files for all cards in this column
+      const attachments = await ctx.prisma.attachment.findMany({
+        where: { card: { columnId: input.id } },
+        select: { storagePath: true },
+      })
+      deleteStorageFiles(attachments.map((a) => a.storagePath))
+
       const column = await ctx.prisma.column.delete({
         where: { id: input.id },
       })

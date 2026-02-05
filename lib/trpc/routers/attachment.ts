@@ -1,6 +1,7 @@
 import { z } from "zod/v4"
 
 import { logActivity } from "@/lib/activity"
+import { deleteStorageFiles } from "@/lib/storage"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const attachmentRouter = router({
@@ -53,17 +54,7 @@ export const attachmentRouter = router({
         include: { card: { select: { column: { select: { boardId: true } } } } },
       })
 
-      // Fire-and-forget: delete from Supabase Storage
-      // Done server-side via service role for reliability
-      const { createClient } = await import("@supabase/supabase-js")
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
-      supabase.storage
-        .from("attachments")
-        .remove([attachment.storagePath])
-        .catch(() => {})
+      deleteStorageFiles([attachment.storagePath])
 
       logActivity(ctx.prisma, {
         boardId: attachment.card.column.boardId,

@@ -1,6 +1,7 @@
 import { z } from "zod/v4"
 
 import { logActivity } from "@/lib/activity"
+import { deleteStorageFiles } from "@/lib/storage"
 import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const cardRouter = router({
@@ -139,6 +140,13 @@ export const cardRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Clean up storage files before cascade delete removes the records
+      const attachments = await ctx.prisma.attachment.findMany({
+        where: { cardId: input.id },
+        select: { storagePath: true },
+      })
+      deleteStorageFiles(attachments.map((a) => a.storagePath))
+
       const card = await ctx.prisma.card.delete({
         where: { id: input.id },
         include: { column: { select: { boardId: true } } },
