@@ -161,8 +161,8 @@ export function BoardView({ board }: BoardViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-6 py-3">
-        <h1 className="text-xl font-semibold">{board.name}</h1>
+      <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
+        <h1 className="truncate text-xl font-semibold">{board.name}</h1>
         <Link href={`/boards/${board.id}/settings`}>
           <Button variant="ghost" size="icon">
             <Settings className="h-4 w-4" />
@@ -170,7 +170,7 @@ export function BoardView({ board }: BoardViewProps) {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-x-auto p-6">
+      <div className="flex-1 overflow-x-auto p-3 sm:p-6">
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable
             droppableId="board"
@@ -193,7 +193,7 @@ export function BoardView({ board }: BoardViewProps) {
                   />
                 ))}
                 {provided.placeholder}
-                <div className="w-72 shrink-0">
+                <div className="w-[17rem] shrink-0 sm:w-72">
                   <AddColumnButton boardId={board.id} />
                 </div>
               </div>

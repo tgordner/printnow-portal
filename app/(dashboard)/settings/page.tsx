@@ -39,7 +39,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
       <h1 className="mb-6 text-2xl font-bold">Settings</h1>
 
       <div className="space-y-8">
@@ -63,6 +63,14 @@ export default function SettingsPage() {
           currentUserId={me?.id}
           isAdmin={org.currentUserRole === "OWNER" || org.currentUserRole === "ADMIN"}
         />
+
+        {/* Invites (admin only) */}
+        {(org.currentUserRole === "OWNER" || org.currentUserRole === "ADMIN") && (
+          <>
+            <Separator />
+            <InviteSection />
+          </>
+        )}
       </div>
     </div>
   )
@@ -330,6 +338,107 @@ function MembersSection({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function InviteSection() {
+  const utils = api.useUtils()
+  const [email, setEmail] = useState("")
+  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER")
+
+  const { data: invites, isLoading } = api.invite.list.useQuery()
+
+  const createInvite = api.invite.create.useMutation({
+    onSuccess: () => {
+      utils.invite.list.invalidate()
+      setEmail("")
+      setRole("MEMBER")
+      toast.success("Invite sent")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  const deleteInvite = api.invite.delete.useMutation({
+    onSuccess: () => {
+      utils.invite.list.invalidate()
+      toast.success("Invite cancelled")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  function handleInvite(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) return
+    createInvite.mutate({ email: email.trim(), role })
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Invite Members</h2>
+
+      <form onSubmit={handleInvite} className="flex gap-2">
+        <Input
+          type="email"
+          placeholder="colleague@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="flex-1"
+        />
+        <Select
+          value={role}
+          onValueChange={(value) => setRole(value as "ADMIN" | "MEMBER")}
+        >
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ADMIN">Admin</SelectItem>
+            <SelectItem value="MEMBER">Member</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button type="submit" disabled={createInvite.isPending}>
+          {createInvite.isPending ? "Sending..." : "Invite"}
+        </Button>
+      </form>
+
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading invites...</p>
+      )}
+
+      {invites && invites.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">
+            Pending invites
+          </p>
+          {invites.map((invite) => (
+            <div
+              key={invite.id}
+              className="flex items-center gap-3 rounded-lg border p-3"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{invite.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  {invite.role.charAt(0) + invite.role.slice(1).toLowerCase()}
+                  {" \u00b7 "}
+                  Invited{" "}
+                  {new Date(invite.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-destructive hover:text-destructive"
+                onClick={() => deleteInvite.mutate({ inviteId: invite.id })}
+                disabled={deleteInvite.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

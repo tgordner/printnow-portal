@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -38,6 +40,10 @@ export default function BoardSettingsPage() {
   const { data: labels = [] } = api.label.list.useQuery({
     boardId: params.boardId,
   })
+  const { data: org } = api.organization.getCurrent.useQuery()
+
+  const isAdmin =
+    org?.currentUserRole === "OWNER" || org?.currentUserRole === "ADMIN"
 
   const updateBoard = api.board.update.useMutation({
     onSuccess: () => {
@@ -72,7 +78,7 @@ export default function BoardSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
       <div className="mb-6 flex items-center gap-3">
         <Link href={`/boards/${params.boardId}`}>
           <Button variant="ghost" size="icon">
@@ -102,6 +108,14 @@ export default function BoardSettingsPage() {
           </p>
           <LabelManager boardId={params.boardId} labels={labels} />
         </div>
+
+        {/* Members (admin only) */}
+        {isAdmin && (
+          <>
+            <Separator />
+            <BoardMembersSection boardId={params.boardId} />
+          </>
+        )}
 
         <Separator />
 
@@ -450,6 +464,127 @@ function LabelManager({
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Create label
         </Button>
+      )}
+    </div>
+  )
+}
+
+function BoardMembersSection({ boardId }: { boardId: string }) {
+  const utils = api.useUtils()
+
+  const { data: members, isLoading } = api.board.listMembers.useQuery({
+    boardId,
+  })
+
+  const addMember = api.board.addMember.useMutation({
+    onSuccess: () => {
+      utils.board.listMembers.invalidate({ boardId })
+      toast.success("Member added to board")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  const removeMember = api.board.removeMember.useMutation({
+    onSuccess: () => {
+      utils.board.listMembers.invalidate({ boardId })
+      toast.success("Member removed from board")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  function getInitials(name: string | null, email: string) {
+    if (name) {
+      return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    return (email[0] ?? "?").toUpperCase()
+  }
+
+  const roleColors = {
+    OWNER: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+    ADMIN: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    MEMBER: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Board Members</h2>
+      <p className="text-sm text-muted-foreground">
+        Owners and Admins can always see all boards. Toggle access for Member-role users.
+      </p>
+
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading members...</p>
+      )}
+
+      {members && (
+        <div className="space-y-2">
+          {members.map((member) => {
+            const isPrivileged =
+              member.role === "OWNER" || member.role === "ADMIN"
+            return (
+              <div
+                key={member.userId}
+                className="flex items-center gap-3 rounded-lg border p-3"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(member.name, member.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {member.name || member.email}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {member.email}
+                  </p>
+                </div>
+                {isPrivileged ? (
+                  <Badge
+                    variant="secondary"
+                    className={roleColors[member.role]}
+                  >
+                    All boards
+                  </Badge>
+                ) : member.isBoardMember ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled={removeMember.isPending}
+                    onClick={() =>
+                      removeMember.mutate({
+                        boardId,
+                        userId: member.userId,
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled={addMember.isPending}
+                    onClick={() =>
+                      addMember.mutate({
+                        boardId,
+                        userId: member.userId,
+                      })
+                    }
+                  >
+                    Add
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

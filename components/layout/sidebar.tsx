@@ -12,13 +12,27 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  mobile?: boolean
+  onNavigate?: () => void
+}
+
+export function Sidebar({ mobile, onNavigate }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
+    <aside
+      className={cn(
+        "w-64 shrink-0 border-r bg-sidebar",
+        !mobile && "hidden lg:block"
+      )}
+    >
       <div className="flex h-16 items-center border-b px-6">
-        <Link href="/boards" className="flex items-center gap-2">
+        <Link
+          href="/boards"
+          className="flex items-center gap-2"
+          onClick={onNavigate}
+        >
           <LayoutDashboard className="h-6 w-6 text-primary" />
           <span className="text-lg font-semibold">PrintNow Portal</span>
         </Link>
@@ -30,6 +44,7 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive

@@ -110,7 +110,7 @@ export function BoardColumn({ column, index, boardId, onCardClick }: ColumnProps
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className="w-72 shrink-0"
+          className="w-[17rem] shrink-0 sm:w-72"
         >
           <div className="flex max-h-[calc(100vh-12rem)] flex-col rounded-lg border bg-muted/50">
             {/* Column header */}

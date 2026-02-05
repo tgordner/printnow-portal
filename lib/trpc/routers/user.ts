@@ -1,6 +1,6 @@
 import { z } from "zod/v4"
 
-import { protectedProcedure, publicProcedure, router } from "@/lib/trpc/server"
+import { protectedProcedure, router } from "@/lib/trpc/server"
 
 export const userRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
@@ -41,26 +41,4 @@ export const userRouter = router({
       })
     }),
 
-  syncFromAuth: publicProcedure
-    .input(
-      z.object({
-        supabaseId: z.string(),
-        email: z.string().email(),
-        name: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.user.upsert({
-        where: { supabaseId: input.supabaseId },
-        update: {
-          email: input.email,
-          name: input.name,
-        },
-        create: {
-          supabaseId: input.supabaseId,
-          email: input.email,
-          name: input.name,
-        },
-      })
-    }),
 })

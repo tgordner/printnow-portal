@@ -22,6 +22,7 @@ model Organization {
   members   OrganizationMember[]
   boards    Board[]
   customers Customer[]
+  invites   Invite[]
 }
 
 model OrganizationMember {
@@ -52,10 +53,27 @@ model User {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  memberships   OrganizationMember[]
-  assignedCards Card[]               @relation("CardAssignees")
-  createdCards  Card[]               @relation("CardCreator")
-  comments      Comment[]
+  memberships    OrganizationMember[]
+  assignedCards  Card[]               @relation("CardAssignees")
+  createdCards   Card[]               @relation("CardCreator")
+  comments       Comment[]
+  sentInvites    Invite[]
+  boardMembers   BoardMember[]
+}
+
+model Invite {
+  id             String       @id @default(cuid())
+  organizationId String
+  email          String
+  role           MemberRole   @default(MEMBER)
+  invitedById    String
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation(fields: [invitedById], references: [id])
+  boards         Board[]      @relation("InviteBoards")
+
+  @@unique([organizationId, email])
 }
 
 // ============================================
@@ -92,6 +110,20 @@ model Board {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer       Customer?    @relation("CustomerBoards", fields: [customerId], references: [id], onDelete: SetNull)
   columns        Column[]
+  members        BoardMember[]
+  invites        Invite[]     @relation("InviteBoards")
+}
+
+model BoardMember {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
 }
 
 model Column {

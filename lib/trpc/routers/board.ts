@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server"
 import { z } from "zod/v4"
 
 import { protectedProcedure, router } from "@/lib/trpc/server"
@@ -6,15 +7,23 @@ export const boardRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const memberships = await ctx.prisma.organizationMember.findMany({
       where: { userId: ctx.dbUser.id },
-      select: { organizationId: true },
+      select: { organizationId: true, role: true },
     })
 
     const orgIds = memberships.map((m) => m.organizationId)
+
+    // OWNER/ADMIN see all boards; MEMBER only sees boards they're added to
+    const isAdminOrOwner = memberships.some(
+      (m) => m.role === "OWNER" || m.role === "ADMIN"
+    )
 
     return ctx.prisma.board.findMany({
       where: {
         organizationId: { in: orgIds },
         isArchived: false,
+        ...(!isAdminOrOwner && {
+          members: { some: { userId: ctx.dbUser.id } },
+        }),
       },
       include: {
         columns: {
@@ -121,6 +130,111 @@ export const boardRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.board.delete({
         where: { id: input.id },
+      })
+    }),
+
+  // --- Board member management ---
+
+  listMembers: protectedProcedure
+    .input(z.object({ boardId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get the board's org
+      const board = await ctx.prisma.board.findUniqueOrThrow({
+        where: { id: input.boardId },
+        select: { organizationId: true },
+      })
+
+      // Get all org members with their board membership status
+      const orgMembers = await ctx.prisma.organizationMember.findMany({
+        where: { organizationId: board.organizationId },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      })
+
+      const boardMembers = await ctx.prisma.boardMember.findMany({
+        where: { boardId: input.boardId },
+        select: { userId: true },
+      })
+
+      const boardMemberUserIds = new Set(boardMembers.map((bm) => bm.userId))
+
+      return orgMembers.map((m) => ({
+        memberId: m.id,
+        userId: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        avatarUrl: m.user.avatarUrl,
+        role: m.role,
+        isBoardMember: boardMemberUserIds.has(m.user.id),
+      }))
+    }),
+
+  addMember: protectedProcedure
+    .input(z.object({ boardId: z.string(), userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify caller is OWNER/ADMIN
+      const board = await ctx.prisma.board.findUniqueOrThrow({
+        where: { id: input.boardId },
+        select: { organizationId: true },
+      })
+
+      const callerMembership = await ctx.prisma.organizationMember.findFirst({
+        where: {
+          organizationId: board.organizationId,
+          userId: ctx.dbUser.id,
+          role: { in: ["OWNER", "ADMIN"] },
+        },
+      })
+
+      if (!callerMembership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admins can manage board members",
+        })
+      }
+
+      return ctx.prisma.boardMember.create({
+        data: {
+          boardId: input.boardId,
+          userId: input.userId,
+        },
+      })
+    }),
+
+  removeMember: protectedProcedure
+    .input(z.object({ boardId: z.string(), userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify caller is OWNER/ADMIN
+      const board = await ctx.prisma.board.findUniqueOrThrow({
+        where: { id: input.boardId },
+        select: { organizationId: true },
+      })
+
+      const callerMembership = await ctx.prisma.organizationMember.findFirst({
+        where: {
+          organizationId: board.organizationId,
+          userId: ctx.dbUser.id,
+          role: { in: ["OWNER", "ADMIN"] },
+        },
+      })
+
+      if (!callerMembership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admins can manage board members",
+        })
+      }
+
+      return ctx.prisma.boardMember.delete({
+        where: {
+          boardId_userId: {
+            boardId: input.boardId,
+            userId: input.userId,
+          },
+        },
       })
     }),
 })

@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,37 +18,97 @@ import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("error") === "auth_failed") {
+      setError("The magic link was invalid or expired. Please try again.")
+    }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
+    // Check if email has access before sending magic link
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!data.allowed) {
+        setError(
+          "This email doesn't have access to PrintNow Portal. Contact your administrator to request an invite."
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError("Unable to verify access. Please try again.")
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push("/boards")
-      router.refresh()
+      setSent(true)
+      setLoading(false)
     }
+  }
+
+  if (sent) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl">Check your email</CardTitle>
+          <CardDescription>
+            We sent a magic link to <strong>{email}</strong>. Click the link in
+            the email to sign in.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="flex flex-col gap-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setSent(false)
+              setEmail("")
+            }}
+          >
+            Use a different email
+          </Button>
+        </CardFooter>
+      </Card>
+    )
   }
 
   return (
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to PrintNow Portal</CardDescription>
+        <CardDescription>
+          Enter your email and we&apos;ll send you a magic link to sign in.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -68,20 +128,10 @@ export default function LoginPage() {
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Sending..." : "Send magic link"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}

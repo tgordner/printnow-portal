@@ -17,7 +17,7 @@ export default function BoardsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Boards</h1>
         </div>
@@ -36,7 +36,7 @@ export default function BoardsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Boards</h1>
         <Link href="/boards/new">
@@ -48,20 +48,18 @@ export default function BoardsPage() {
       </div>
 
       {boards && boards.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center p-12">
-          <CardHeader className="text-center">
-            <CardTitle>No boards yet</CardTitle>
-            <CardDescription>
-              Create your first board to get started.
-            </CardDescription>
-          </CardHeader>
-          <Link href="/boards/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+        <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: "calc(100vh - 12rem)" }}>
+          <h2 className="text-2xl font-semibold">No boards yet</h2>
+          <p className="mt-2 text-base text-muted-foreground">
+            Create your first board to get started.
+          </p>
+          <Link href="/boards/new" className="mt-6">
+            <Button size="lg">
+              <Plus className="mr-2 h-5 w-5" />
               Create Board
             </Button>
           </Link>
-        </Card>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {boards?.map((board) => (

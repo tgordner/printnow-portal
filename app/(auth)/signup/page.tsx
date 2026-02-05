@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,23 +18,43 @@ import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 
 export default function SignupPage() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
+    // Check if email has access before sending magic link
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!data.allowed) {
+        setError(
+          "This email doesn't have access to PrintNow Portal. Contact your administrator to request an invite."
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError("Unable to verify access. Please try again.")
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: { name },
       },
     })
@@ -43,16 +63,49 @@ export default function SignupPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push("/boards")
-      router.refresh()
+      setSent(true)
+      setLoading(false)
     }
+  }
+
+  if (sent) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl">Check your email</CardTitle>
+          <CardDescription>
+            We sent a magic link to <strong>{email}</strong>. Click the link in
+            the email to sign in.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="flex flex-col gap-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setSent(false)
+              setEmail("")
+              setName("")
+            }}
+          >
+            Use a different email
+          </Button>
+        </CardFooter>
+      </Card>
+    )
   }
 
   return (
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create an account</CardTitle>
-        <CardDescription>Get started with PrintNow Portal</CardDescription>
+        <CardDescription>
+          Enter your details and we&apos;ll send you a magic link to get
+          started.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -83,22 +136,10 @@ export default function SignupPage() {
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Min 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? "Sending..." : "Send magic link"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
