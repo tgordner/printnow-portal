@@ -1,6 +1,6 @@
 # PrintNow Internal Tools Portal
 
-A modern, real-time Kanban board and internal tools platform built with Next.js 15, Supabase, and TypeScript.
+A real-time Kanban board and internal tools platform built with Next.js 15, Supabase, and TypeScript.
 
 ![License](https://img.shields.io/badge/license-private-red)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black)
@@ -9,24 +9,32 @@ A modern, real-time Kanban board and internal tools platform built with Next.js 
 
 ## Features
 
-- 🎯 **Kanban Boards** - Drag-and-drop project management
-- ⚡ **Real-time Updates** - See changes instantly across all users
-- 🔐 **Authentication** - Secure login with Supabase Auth
-- 👥 **Team Collaboration** - Assign tasks, add comments
-- 📱 **Responsive** - Works on desktop, tablet, and mobile
-- 🎨 **Modern UI** - Clean design with shadcn/ui components
+- **Kanban Boards** — Drag-and-drop columns and cards with @hello-pangea/dnd
+- **Card Details** — Title, description, due date (with overdue indicators), priority, labels, assignees, comments, and file attachments
+- **Real-time Updates** — Supabase Realtime subscriptions keep all users in sync
+- **File Attachments** — Upload via button, drag-and-drop, or clipboard paste (Supabase Storage)
+- **Activity Log** — Board-level audit trail of all changes
+- **In-Board Search** — Server-side card search across titles, descriptions, and comments
+- **Team Management** — Organization members with Owner/Admin/Member roles, email invites with optional board access
+- **Board-Level Access Control** — Board members with role-based visibility
+- **Customer Portal** — Customers access shared boards via unique access codes, view card details, and add comments
+- **Authentication** — Supabase Auth with email/password and magic link login
+- **Dark Mode** — System-aware theme toggle
+- **Responsive** — Mobile sidebar drawer, touch-friendly layout
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS + shadcn/ui
-- **Database:** Supabase (PostgreSQL)
-- **Auth:** Supabase Auth
-- **ORM:** Prisma
-- **API:** tRPC
-- **Drag & Drop:** @hello-pangea/dnd
-- **Hosting:** Vercel
+| Technology | Purpose |
+|------------|---------|
+| [Next.js 15](https://nextjs.org) | Framework (App Router, Turbopack) |
+| [TypeScript 5](https://www.typescriptlang.org) | Language |
+| [Tailwind CSS 4](https://tailwindcss.com) | Styling |
+| [shadcn/ui](https://ui.shadcn.com) | UI components (new-york style) |
+| [Supabase](https://supabase.com) | Database, Auth, Realtime, Storage |
+| [Prisma 6](https://www.prisma.io) | ORM |
+| [tRPC 11](https://trpc.io) | Type-safe API layer |
+| [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) | Drag and drop |
+| [Vercel](https://vercel.com) | Hosting |
 
 ## Getting Started
 
@@ -34,14 +42,14 @@ A modern, real-time Kanban board and internal tools platform built with Next.js 
 
 - Node.js 18+
 - pnpm (`npm install -g pnpm`)
-- Supabase account (free tier works)
+- Supabase account
 - Vercel account (for deployment)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-org/printnow-portal.git
+   git clone https://github.com/tgordner/printnow-portal.git
    cd printnow-portal
    ```
 
@@ -54,7 +62,7 @@ A modern, real-time Kanban board and internal tools platform built with Next.js 
    ```bash
    cp .env.example .env.local
    ```
-   Then edit `.env.local` with your Supabase credentials.
+   Edit `.env.local` with your Supabase credentials.
 
 4. **Set up the database**
    ```bash
@@ -73,58 +81,57 @@ A modern, real-time Kanban board and internal tools platform built with Next.js 
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
-| `DATABASE_URL` | PostgreSQL connection string (pooled) |
+| `DATABASE_URL` | PostgreSQL connection string |
 | `DIRECT_URL` | PostgreSQL direct connection string |
 
 ## Project Structure
 
 ```
-├── app/                    # Next.js pages and routes
-│   ├── (auth)/            # Authentication pages
-│   ├── (dashboard)/       # Main application
-│   └── api/               # API routes
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   ├── board/            # Kanban board components
-│   └── layout/           # Layout components
-├── lib/                   # Utilities and configurations
-├── hooks/                 # Custom React hooks
-├── prisma/               # Database schema
-└── types/                # TypeScript types
+app/
+  (auth)/                 # Login, signup
+  (dashboard)/            # Boards, settings, customers
+  customer/               # Customer portal (public)
+  api/                    # tRPC API routes
+components/
+  board/                  # Kanban: board-view, column, card, card-modal,
+                          #   assignee-picker, label-picker, activity-panel,
+                          #   attachments-section
+  customer/               # Customer card modal
+  layout/                 # Header, sidebar, user-menu, theme-toggle
+  shared/                 # Due-date badge, empty-state, loading
+  ui/                     # shadcn/ui components
+lib/
+  trpc/                   # tRPC server, client, and routers
+  supabase/               # Supabase client/server helpers
+  prisma.ts               # Prisma client singleton
+hooks/                    # Custom React hooks
+prisma/
+  schema.prisma           # Database schema
 ```
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start development server |
-| `pnpm build` | Build for production |
+| `pnpm dev` | Start dev server (Turbopack) |
+| `pnpm build` | Production build |
 | `pnpm start` | Start production server |
 | `pnpm lint` | Run ESLint |
-| `pnpm prisma studio` | Open Prisma database GUI |
+| `pnpm prisma studio` | Open database GUI |
 | `pnpm prisma db push` | Push schema changes to database |
 
 ## Deployment
 
-### Deploy to Vercel
-
-1. Push your code to GitHub
-2. Import the repository in Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy
+Deployed to Vercel with auto-deploy on push to `main`.
 
 ```bash
-# Or deploy via CLI
+# Or deploy manually via CLI
 vercel --prod
 ```
 
-## Contributing
-
-This is a private internal project. Contact the development team for contribution guidelines.
-
 ## License
 
-Private - PrintNow © 2025
+Private - PrintNow 2025
