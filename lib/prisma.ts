@@ -7,21 +7,26 @@ if (!globalForPrisma.prisma) {
   // Fall back to DATABASE_URL (may be set by Supabase-Vercel integration)
   const dbUrl = process.env.PRISMA_DATABASE_URL || process.env.DATABASE_URL
 
-  // Debug: log which URL source is being used (no password)
-  const source = process.env.PRISMA_DATABASE_URL ? "PRISMA_DATABASE_URL" : "DATABASE_URL"
+  console.log("[prisma] PRISMA_DATABASE_URL set:", !!process.env.PRISMA_DATABASE_URL)
+  console.log("[prisma] DATABASE_URL set:", !!process.env.DATABASE_URL)
   if (dbUrl) {
     try {
       const url = new URL(dbUrl)
-      console.log(`[prisma] Using ${source} ->`, url.username + "@" + url.host + url.pathname + url.search)
+      console.log("[prisma] Connecting to:", url.host)
     } catch {
-      console.log(`[prisma] Using ${source} -> (invalid URL, length: ${dbUrl.length})`)
+      console.log("[prisma] URL parse failed, length:", dbUrl.length)
     }
   } else {
-    console.log("[prisma] WARNING: No database URL found (checked PRISMA_DATABASE_URL and DATABASE_URL)")
+    console.log("[prisma] WARNING: No database URL found!")
   }
 
+  // Use explicit datasources override (more reliable than datasourceUrl)
   globalForPrisma.prisma = new PrismaClient({
-    datasourceUrl: dbUrl,
+    datasources: {
+      db: {
+        url: dbUrl,
+      },
+    },
   })
 }
 
