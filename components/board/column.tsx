@@ -40,7 +40,7 @@ interface ColumnProps {
         avatarUrl: string | null
       }>
       labels: Array<{ id: string; name: string; color: string }>
-      _count: { comments: number }
+      _count: { comments: number; attachments: number }
     }>
   }
   index: number

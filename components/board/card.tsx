@@ -1,7 +1,7 @@
 "use client"
 
 import { Draggable } from "@hello-pangea/dnd"
-import { Calendar, MessageSquare } from "lucide-react"
+import { Calendar, MessageSquare, Paperclip } from "lucide-react"
 import { format } from "date-fns"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -22,7 +22,7 @@ interface CardProps {
       avatarUrl: string | null
     }>
     labels: Array<{ id: string; name: string; color: string }>
-    _count: { comments: number }
+    _count: { comments: number; attachments: number }
   }
   index: number
   onClick?: () => void
@@ -81,6 +81,13 @@ export function BoardCard({ card, index, onClick }: CardProps) {
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <MessageSquare className="h-3 w-3" />
                   {card._count.comments}
+                </span>
+              )}
+              {/* Attachments count */}
+              {card._count.attachments > 0 && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Paperclip className="h-3 w-3" />
+                  {card._count.attachments}
                 </span>
               )}
               {/* Priority */}

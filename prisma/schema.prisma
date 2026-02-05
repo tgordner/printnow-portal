@@ -195,15 +195,16 @@ model Comment {
 }
 
 model Attachment {
-  id        String   @id @default(cuid())
-  cardId    String
-  name      String
-  url       String
-  size      Int
-  mimeType  String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  cardId      String
+  name        String
+  url         String
+  storagePath String
+  size        Int
+  mimeType    String
+  createdAt   DateTime @default(now())
 
-  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
 }
 
 // ============================================

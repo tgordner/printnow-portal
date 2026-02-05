@@ -57,7 +57,7 @@ export const boardRouter = router({
                   },
                   labels: true,
                   _count: {
-                    select: { comments: true },
+                    select: { comments: true, attachments: true },
                   },
                 },
               },

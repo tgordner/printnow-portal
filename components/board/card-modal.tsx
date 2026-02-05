@@ -37,7 +37,9 @@ import {
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { AssigneePicker } from "@/components/board/assignee-picker"
+import { AttachmentsSection } from "@/components/board/attachments-section"
 import { LabelPicker } from "@/components/board/label-picker"
+import { useFileUpload } from "@/hooks/use-file-upload"
 import { PRIORITY_CONFIG } from "@/lib/constants"
 import { api } from "@/lib/trpc/client"
 import { cn } from "@/lib/utils"
@@ -61,6 +63,39 @@ export function CardModal({
     { id: cardId },
     { enabled: open }
   )
+
+  const { uploadFiles } = useFileUpload({ cardId, boardId })
+
+  // Clipboard paste handler for images
+  useEffect(() => {
+    if (!open) return
+
+    function handlePaste(e: ClipboardEvent) {
+      const items = Array.from(e.clipboardData?.items || [])
+      const imageItems = items.filter((item) =>
+        item.type.startsWith("image/")
+      )
+
+      if (imageItems.length === 0) return
+
+      e.preventDefault()
+
+      const files = imageItems
+        .map((item) => {
+          const file = item.getAsFile()
+          if (!file) return null
+          const ext = file.type.split("/")[1] || "png"
+          const name = `pasted-image-${Date.now()}.${ext}`
+          return new File([file], name, { type: file.type })
+        })
+        .filter((f): f is File => f !== null)
+
+      uploadFiles(files)
+    }
+
+    document.addEventListener("paste", handlePaste)
+    return () => document.removeEventListener("paste", handlePaste)
+  }, [open, uploadFiles])
 
   const updateCard = api.card.update.useMutation({
     onSuccess: () => {
@@ -268,6 +303,15 @@ export function CardModal({
                   }
                 />
               </div>
+
+              <Separator />
+
+              {/* Attachments */}
+              <AttachmentsSection
+                cardId={cardId}
+                boardId={boardId}
+                attachments={card.attachments}
+              />
 
               <Separator />
 

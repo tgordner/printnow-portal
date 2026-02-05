@@ -70,6 +70,17 @@ export function useBoardRealtime(boardId: string, onUpdate: () => void) {
           onUpdate()
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "Attachment",
+        },
+        () => {
+          onUpdate()
+        }
+      )
       .subscribe()
 
     return () => {
