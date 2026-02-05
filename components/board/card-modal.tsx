@@ -36,6 +36,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { dueDateStatusClass } from "@/components/shared/due-date-badge"
 import { AssigneePicker } from "@/components/board/assignee-picker"
 import { AttachmentsSection } from "@/components/board/attachments-section"
 import { LabelPicker } from "@/components/board/label-picker"
@@ -180,9 +181,11 @@ export function CardModal({
                       <Button
                         variant="outline"
                         size="sm"
+                        suppressHydrationWarning
                         className={cn(
                           "h-9 w-full justify-start text-left font-normal",
-                          !card.dueDate && "text-muted-foreground"
+                          !card.dueDate && "text-muted-foreground",
+                          card.dueDate && dueDateStatusClass(card.dueDate)
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -500,7 +503,8 @@ function CommentSection({
     id: string
     content: string
     createdAt: Date
-    user: { id: string; name: string | null; email: string }
+    user: { id: string; name: string | null; email: string } | null
+    customer?: { id: string; name: string } | null
   }>
   boardId: string
 }) {
@@ -526,32 +530,40 @@ function CommentSection({
 
   return (
     <div className="space-y-3">
-      {comments.map((comment) => (
-        <div key={comment.id} className="flex gap-3">
-          <Avatar className="h-7 w-7 shrink-0">
-            <AvatarFallback className="text-[10px]">
-              {comment.user.name
-                ? comment.user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                : "?"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">
-                {comment.user.name || comment.user.email}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(comment.createdAt), "MMM d, h:mm a")}
-              </span>
+      {comments.map((comment) => {
+        const isCustomerComment = !comment.user && comment.customer
+        const displayName = isCustomerComment
+          ? comment.customer!.name
+          : comment.user?.name || comment.user?.email || "Unknown"
+        const initials = isCustomerComment
+          ? comment.customer!.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+          : comment.user?.name
+            ? comment.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+            : "?"
+        return (
+          <div key={comment.id} className="flex gap-3">
+            <Avatar className="h-7 w-7 shrink-0">
+              <AvatarFallback className={cn("text-[10px]", isCustomerComment && "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300")}>
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{displayName}</span>
+                {isCustomerComment && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    Customer
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(comment.createdAt), "MMM d, h:mm a")}
+                </span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
             </div>
-            <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       {/* New comment input */}
       <div className="flex gap-2">

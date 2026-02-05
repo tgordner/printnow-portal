@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server"
 import { z } from "zod/v4"
 
 import { protectedProcedure, publicProcedure, router } from "@/lib/trpc/server"
@@ -124,7 +125,7 @@ export const customerRouter = router({
                     orderBy: { position: "asc" },
                     include: {
                       labels: true,
-                      _count: { select: { comments: true } },
+                      _count: { select: { comments: true, attachments: true } },
                     },
                   },
                 },
@@ -140,5 +141,93 @@ export const customerRouter = router({
         name: customer.name,
         boards: customer.boards,
       }
+    }),
+
+  // Public: get card details for customer view
+  getCard: publicProcedure
+    .input(z.object({ accessCode: z.string().min(1), cardId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const customer = await ctx.prisma.customer.findUnique({
+        where: { accessCode: input.accessCode.toUpperCase() },
+        include: { boards: { select: { id: true } } },
+      })
+
+      if (!customer) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invalid access code" })
+      }
+
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        include: {
+          column: { select: { boardId: true, name: true } },
+          assignees: { select: { id: true, name: true, avatarUrl: true } },
+          labels: true,
+          comments: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+              customer: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+          attachments: true,
+        },
+      })
+
+      if (!card) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Card not found" })
+      }
+
+      // Verify card belongs to a board assigned to this customer
+      const boardIds = customer.boards.map((b) => b.id)
+      if (!boardIds.includes(card.column.boardId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" })
+      }
+
+      return card
+    }),
+
+  // Public: add a comment as a customer
+  addComment: publicProcedure
+    .input(
+      z.object({
+        accessCode: z.string().min(1),
+        cardId: z.string(),
+        content: z.string().min(1).max(2000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const customer = await ctx.prisma.customer.findUnique({
+        where: { accessCode: input.accessCode.toUpperCase() },
+        include: { boards: { select: { id: true } } },
+      })
+
+      if (!customer) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invalid access code" })
+      }
+
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        include: { column: { select: { boardId: true } } },
+      })
+
+      if (!card) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Card not found" })
+      }
+
+      const boardIds = customer.boards.map((b) => b.id)
+      if (!boardIds.includes(card.column.boardId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" })
+      }
+
+      return ctx.prisma.comment.create({
+        data: {
+          cardId: input.cardId,
+          customerId: customer.id,
+          content: input.content,
+        },
+        include: {
+          customer: { select: { id: true, name: true } },
+        },
+      })
     }),
 })

@@ -1,13 +1,18 @@
 "use client"
 
+import { MessageSquare, Paperclip } from "lucide-react"
 import { useParams } from "next/navigation"
+import { useState } from "react"
 
+import { CustomerCardModal } from "@/components/customer/customer-card-modal"
+import { DueDateBadge } from "@/components/shared/due-date-badge"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/trpc/client"
 import { PRIORITY_CONFIG } from "@/lib/constants"
 
 export default function CustomerBoardPage() {
   const params = useParams<{ accessCode: string }>()
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const { data, isLoading } = api.customer.getByAccessCode.useQuery({
     accessCode: params.accessCode,
   })
@@ -75,7 +80,8 @@ export default function CustomerBoardPage() {
                       {column.cards.map((card) => (
                         <div
                           key={card.id}
-                          className="rounded-md border bg-background p-3 space-y-2"
+                          className="cursor-pointer rounded-md border bg-background p-3 space-y-2 transition-all hover:shadow-md"
+                          onClick={() => setSelectedCardId(card.id)}
                         >
                           <p className="text-sm font-medium">{card.title}</p>
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -107,12 +113,23 @@ export default function CustomerBoardPage() {
                               </Badge>
                             )}
                           </div>
-                          {card._count.comments > 0 && (
-                            <p className="text-[10px] text-muted-foreground">
-                              {card._count.comments} comment
-                              {card._count.comments !== 1 && "s"}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {card.dueDate && (
+                              <DueDateBadge date={card.dueDate} className="text-[10px]" iconSize="h-2.5 w-2.5" />
+                            )}
+                            {card._count.comments > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <MessageSquare className="h-2.5 w-2.5" />
+                                {card._count.comments}
+                              </span>
+                            )}
+                            {card._count.attachments > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Paperclip className="h-2.5 w-2.5" />
+                                {card._count.attachments}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {column.cards.length === 0 && (
@@ -127,6 +144,17 @@ export default function CustomerBoardPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {selectedCardId && (
+        <CustomerCardModal
+          cardId={selectedCardId}
+          accessCode={params.accessCode}
+          open={!!selectedCardId}
+          onOpenChange={(open) => {
+            if (!open) setSelectedCardId(null)
+          }}
+        />
       )}
     </div>
   )

@@ -1,11 +1,11 @@
 "use client"
 
 import { Draggable } from "@hello-pangea/dnd"
-import { Calendar, MessageSquare, Paperclip } from "lucide-react"
-import { format } from "date-fns"
+import { MessageSquare, Paperclip } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { DueDateBadge } from "@/components/shared/due-date-badge"
 import { PRIORITY_CONFIG } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 
@@ -73,10 +73,7 @@ export function BoardCard({ card, index, dimmed, onClick }: CardProps) {
             <div className="flex items-center gap-2">
               {/* Due date */}
               {card.dueDate && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(card.dueDate), "MMM d")}
-                </span>
+                <DueDateBadge date={card.dueDate} />
               )}
               {/* Comments count */}
               {card._count.comments > 0 && (

@@ -14,7 +14,7 @@ export const cardRouter = router({
           assignees: true,
           labels: true,
           comments: {
-            include: { user: true },
+            include: { user: true, customer: true },
             orderBy: { createdAt: "asc" },
           },
           creator: true,

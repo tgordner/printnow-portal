@@ -92,6 +92,7 @@ model Customer {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   boards         Board[]      @relation("CustomerBoards")
+  comments       Comment[]
 }
 
 // ============================================
@@ -183,15 +184,17 @@ model Label {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  cardId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  cardId     String
+  userId     String?
+  customerId String?
+  content    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
+  card       Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 }
 
 model Attachment {
