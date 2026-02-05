@@ -224,6 +224,34 @@ export const cardRouter = router({
       return card
     }),
 
+  search: protectedProcedure
+    .input(
+      z.object({
+        boardId: z.string(),
+        query: z.string().min(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const cards = await ctx.prisma.card.findMany({
+        where: {
+          column: { boardId: input.boardId },
+          OR: [
+            { title: { contains: input.query, mode: "insensitive" } },
+            { description: { contains: input.query, mode: "insensitive" } },
+            {
+              comments: {
+                some: {
+                  content: { contains: input.query, mode: "insensitive" },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      })
+      return cards.map((c) => c.id)
+    }),
+
   addComment: protectedProcedure
     .input(
       z.object({

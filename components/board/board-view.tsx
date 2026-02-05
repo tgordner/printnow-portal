@@ -5,15 +5,17 @@ import {
   Droppable,
   type DropResult,
 } from "@hello-pangea/dnd"
-import { Activity, Plus, Settings } from "lucide-react"
+import { Activity, Loader2, Plus, Search, Settings, X } from "lucide-react"
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { ActivityPanel } from "@/components/board/activity-panel"
 import { CardModal } from "@/components/board/card-modal"
 import { BoardColumn } from "@/components/board/column"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useDebounce } from "@/hooks/use-debounce"
 import { useBoardRealtime } from "@/hooks/use-realtime"
 import { api } from "@/lib/trpc/client"
 
@@ -54,6 +56,26 @@ export function BoardView({ board }: BoardViewProps) {
   const [columns, setColumns] = useState(board.columns)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [showActivity, setShowActivity] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const debouncedQuery = useDebounce(searchQuery.trim(), 300)
+
+  const { data: matchingIds, isFetching: isSearching } =
+    api.card.search.useQuery(
+      { boardId: board.id, query: debouncedQuery },
+      { enabled: debouncedQuery.length > 0 }
+    )
+
+  const matchingCardIds = useMemo(() => {
+    if (!debouncedQuery || !matchingIds) return null
+    return new Set(matchingIds)
+  }, [debouncedQuery, matchingIds])
+
+  function clearSearch() {
+    setSearchQuery("")
+    setSearchExpanded(false)
+  }
 
   // Sync columns when board data refreshes (e.g. after card update)
   useEffect(() => {
@@ -166,6 +188,48 @@ export function BoardView({ board }: BoardViewProps) {
       <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
         <h1 className="truncate text-xl font-semibold">{board.name}</h1>
         <div className="flex items-center gap-1">
+          {/* Search */}
+          <div className="flex items-center gap-1">
+            {searchExpanded ? (
+              <div className="relative flex items-center">
+                <Search className="absolute left-2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") clearSearch()
+                  }}
+                  placeholder="Search cards..."
+                  className="h-8 w-40 pl-8 pr-8 text-sm sm:w-52"
+                  autoFocus
+                />
+                {isSearching && debouncedQuery ? (
+                  <Loader2 className="absolute right-2 h-4 w-4 animate-spin text-muted-foreground" />
+                ) : searchQuery ? (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchExpanded(true)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            )}
+            {matchingCardIds && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {matchingCardIds.size} found
+              </span>
+            )}
+          </div>
           <Button
             variant={showActivity ? "secondary" : "ghost"}
             size="icon"
@@ -201,6 +265,7 @@ export function BoardView({ board }: BoardViewProps) {
                       column={column}
                       index={index}
                       boardId={board.id}
+                      matchingCardIds={matchingCardIds}
                       onCardClick={(cardId) => setSelectedCardId(cardId)}
                     />
                   ))}

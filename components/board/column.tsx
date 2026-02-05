@@ -45,10 +45,11 @@ interface ColumnProps {
   }
   index: number
   boardId: string
+  matchingCardIds?: Set<string> | null
   onCardClick?: (cardId: string) => void
 }
 
-export function BoardColumn({ column, index, boardId, onCardClick }: ColumnProps) {
+export function BoardColumn({ column, index, boardId, matchingCardIds, onCardClick }: ColumnProps) {
   const utils = api.useUtils()
   const [isAddingCard, setIsAddingCard] = useState(false)
   const [newCardTitle, setNewCardTitle] = useState("")
@@ -212,6 +213,7 @@ export function BoardColumn({ column, index, boardId, onCardClick }: ColumnProps
                       key={card.id}
                       card={card}
                       index={cardIndex}
+                      dimmed={matchingCardIds ? !matchingCardIds.has(card.id) : false}
                       onClick={() => onCardClick?.(card.id)}
                     />
                   ))}

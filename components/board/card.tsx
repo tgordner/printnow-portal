@@ -25,10 +25,11 @@ interface CardProps {
     _count: { comments: number; attachments: number }
   }
   index: number
+  dimmed?: boolean
   onClick?: () => void
 }
 
-export function BoardCard({ card, index, onClick }: CardProps) {
+export function BoardCard({ card, index, dimmed, onClick }: CardProps) {
   const priority = PRIORITY_CONFIG[card.priority]
 
   return (
@@ -45,8 +46,9 @@ export function BoardCard({ card, index, onClick }: CardProps) {
             }
           }}
           className={cn(
-            "cursor-pointer rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md",
-            snapshot.isDragging && "rotate-2 shadow-lg"
+            "cursor-pointer rounded-md border bg-card p-3 shadow-sm transition-all hover:shadow-md",
+            snapshot.isDragging && "rotate-2 shadow-lg",
+            dimmed && "opacity-30 pointer-events-none"
           )}
         >
           {/* Labels */}
