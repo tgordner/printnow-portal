@@ -20,7 +20,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -132,7 +131,7 @@ export function CardModal({
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
         ) : (
-          <ScrollArea className="flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="space-y-6 pb-8">
               {/* Title */}
               <EditableTitle
@@ -351,7 +350,7 @@ export function CardModal({
                 </Button>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         )}
       </SheetContent>
     </Sheet>

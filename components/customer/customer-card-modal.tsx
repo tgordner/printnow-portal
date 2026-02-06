@@ -12,7 +12,6 @@ import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
   Sheet,
@@ -59,7 +58,7 @@ export function CustomerCardModal({
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
         ) : (
-          <ScrollArea className="flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="space-y-6 pb-8">
               {/* Title */}
               <h2 className="text-xl font-semibold">{card.title}</h2>
@@ -186,7 +185,7 @@ export function CustomerCardModal({
                 />
               </div>
             </div>
-          </ScrollArea>
+          </div>
         )}
       </SheetContent>
     </Sheet>
