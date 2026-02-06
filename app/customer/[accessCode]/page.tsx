@@ -1,6 +1,6 @@
 "use client"
 
-import { MessageSquare, Paperclip } from "lucide-react"
+import { ArrowLeft, MessageSquare, Paperclip } from "lucide-react"
 import { useParams, useSearchParams } from "next/navigation"
 import { Suspense, useCallback, useEffect, useState } from "react"
 
@@ -8,6 +8,12 @@ import { CustomerCardModal } from "@/components/customer/customer-card-modal"
 import { DueDateBadge } from "@/components/shared/due-date-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { api } from "@/lib/trpc/client"
 import { PRIORITY_CONFIG } from "@/lib/constants"
@@ -48,6 +54,7 @@ function CustomerBoardContent() {
   const params = useParams<{ accessCode: string }>()
   const searchParams = useSearchParams()
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null)
   const [identifiedContact, setIdentifiedContact] = useState<{
     contactId: string
     email: string
@@ -112,6 +119,14 @@ function CustomerBoardContent() {
     // 3. Show email form
     setGateChecked(true)
   }, [data, gateChecked, hasContacts, searchParams, identifyByEmail, params.accessCode])
+
+  // Auto-select board if only one
+  useEffect(() => {
+    if (!data) return
+    if (data.boards.length === 1 && !selectedBoardId && data.boards[0]) {
+      setSelectedBoardId(data.boards[0].id)
+    }
+  }, [data, selectedBoardId])
 
   function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -182,121 +197,179 @@ function CustomerBoardContent() {
     )
   }
 
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        {identifiedContact ? (
-          <div>
-            <p className="text-sm font-medium">
-              Welcome, {identifiedContact.name}
-            </p>
-            <p className="text-xs text-muted-foreground">{data.name}</p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Welcome, {data.name}
+  // Welcome header
+  const welcomeHeader = (
+    <div className="mb-6">
+      {identifiedContact ? (
+        <div>
+          <p className="text-sm font-medium">
+            Welcome, {identifiedContact.name}
           </p>
-        )}
-      </div>
-
-      {data.boards.length === 0 ? (
-        <div className="flex items-center justify-center rounded-lg border border-dashed p-12">
-          <p className="text-sm text-muted-foreground">
-            No boards have been shared with you yet.
-          </p>
+          <p className="text-xs text-muted-foreground">{data.name}</p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <p className="text-sm text-muted-foreground">
+          Welcome, {data.name}
+        </p>
+      )}
+    </div>
+  )
+
+  // No boards
+  if (data.boards.length === 0) {
+    return (
+      <div className="p-6">
+        {welcomeHeader}
+        <div className="flex items-center justify-center rounded-lg border border-dashed p-12">
+          <p className="text-sm text-muted-foreground">
+            No projects have been shared with you yet.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Board picker for multiple boards
+  if (data.boards.length > 1 && !selectedBoardId) {
+    return (
+      <div className="p-6">
+        {welcomeHeader}
+        <h2 className="mb-4 text-lg font-semibold">Select a project</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.boards.map((board) => (
-            <div key={board.id}>
-              <h2 className="mb-4 text-lg font-semibold">{board.name}</h2>
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {board.columns.map((column) => (
-                  <div
-                    key={column.id}
-                    className="w-72 shrink-0 rounded-lg border bg-muted/50"
-                  >
-                    <div className="flex items-center gap-2 px-3 py-2">
-                      {column.color && (
-                        <div
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: column.color }}
-                        />
-                      )}
-                      <h3 className="text-sm font-semibold">{column.name}</h3>
-                      <span className="text-xs text-muted-foreground">
-                        {column.cards.length}
-                      </span>
-                    </div>
-                    <div className="space-y-2 px-2 py-1">
-                      {column.cards.map((card) => (
-                        <div
-                          key={card.id}
-                          className="cursor-pointer rounded-md border bg-background p-3 space-y-2 transition-all hover:shadow-md"
-                          onClick={() => setSelectedCardId(card.id)}
-                        >
-                          <p className="text-sm font-medium">{card.title}</p>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {card.labels.map((label) => (
-                              <Badge
-                                key={label.id}
-                                variant="secondary"
-                                className="text-[10px] px-1.5 py-0"
-                                style={{
-                                  backgroundColor: label.color,
-                                  color: "white",
-                                }}
-                              >
-                                {label.name}
-                              </Badge>
-                            ))}
-                            {card.priority !== "NONE" && (
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] px-1.5 py-0"
-                              >
-                                <span
-                                  className={
-                                    PRIORITY_CONFIG[card.priority].color
-                                  }
-                                >
-                                  {PRIORITY_CONFIG[card.priority].label}
-                                </span>
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {card.dueDate && (
-                              <DueDateBadge date={card.dueDate} className="text-[10px]" iconSize="h-2.5 w-2.5" />
-                            )}
-                            {card._count.comments > 0 && (
-                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <MessageSquare className="h-2.5 w-2.5" />
-                                {card._count.comments}
-                              </span>
-                            )}
-                            {card._count.attachments > 0 && (
-                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <Paperclip className="h-2.5 w-2.5" />
-                                {card._count.attachments}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {column.cards.length === 0 && (
-                        <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-                          No cards
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card
+              key={board.id}
+              className="cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => setSelectedBoardId(board.id)}
+            >
+              <CardHeader>
+                <CardTitle className="text-lg">{board.name}</CardTitle>
+                {board.description && (
+                  <CardDescription>{board.description}</CardDescription>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {board.columns.length} columns
+                  {" · "}
+                  {board.columns.reduce((acc, col) => acc + col.cards.length, 0)} cards
+                </p>
+              </CardHeader>
+            </Card>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  // Single board view
+  const board = data.boards.find((b) => b.id === selectedBoardId)
+
+  if (!board) {
+    return (
+      <div className="p-6">
+        {welcomeHeader}
+        <p className="text-sm text-muted-foreground">Project not found.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6">
+      {welcomeHeader}
+
+      {data.boards.length > 1 && (
+        <button
+          className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => setSelectedBoardId(null)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All projects
+        </button>
       )}
+
+      <h2 className="mb-4 text-lg font-semibold">{board.name}</h2>
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {board.columns.map((column) => (
+          <div
+            key={column.id}
+            className="w-72 shrink-0 rounded-lg border bg-muted/50"
+          >
+            <div className="flex items-center gap-2 px-3 py-2">
+              {column.color && (
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: column.color }}
+                />
+              )}
+              <h3 className="text-sm font-semibold">{column.name}</h3>
+              <span className="text-xs text-muted-foreground">
+                {column.cards.length}
+              </span>
+            </div>
+            <div className="space-y-2 px-2 py-1">
+              {column.cards.map((card) => (
+                <div
+                  key={card.id}
+                  className="cursor-pointer rounded-md border bg-background p-3 space-y-2 transition-all hover:shadow-md"
+                  onClick={() => setSelectedCardId(card.id)}
+                >
+                  <p className="text-sm font-medium">{card.title}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {card.labels.map((label) => (
+                      <Badge
+                        key={label.id}
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0"
+                        style={{
+                          backgroundColor: label.color,
+                          color: "white",
+                        }}
+                      >
+                        {label.name}
+                      </Badge>
+                    ))}
+                    {card.priority !== "NONE" && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        <span
+                          className={
+                            PRIORITY_CONFIG[card.priority].color
+                          }
+                        >
+                          {PRIORITY_CONFIG[card.priority].label}
+                        </span>
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {card.dueDate && (
+                      <DueDateBadge date={card.dueDate} className="text-[10px]" iconSize="h-2.5 w-2.5" />
+                    )}
+                    {card._count.comments > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <MessageSquare className="h-2.5 w-2.5" />
+                        {card._count.comments}
+                      </span>
+                    )}
+                    {card._count.attachments > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Paperclip className="h-2.5 w-2.5" />
+                        {card._count.attachments}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {column.cards.length === 0 && (
+                <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+                  No cards
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {selectedCardId && (
         <CustomerCardModal

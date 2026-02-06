@@ -19,7 +19,7 @@ export const boardRouter = router({
       (m) => m.role === "OWNER" || m.role === "ADMIN"
     )
 
-    return ctx.prisma.board.findMany({
+    const boards = await ctx.prisma.board.findMany({
       where: {
         organizationId: { in: orgIds },
         isArchived: false,
@@ -39,11 +39,53 @@ export const boardRouter = router({
       },
       orderBy: { updatedAt: "desc" },
     })
+
+    return { boards, canCreateBoard: isAdminOrOwner }
   }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Check the user's org role and board membership
+      const board = await ctx.prisma.board.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { organizationId: true },
+      })
+
+      const orgMembership = await ctx.prisma.organizationMember.findFirst({
+        where: {
+          organizationId: board.organizationId,
+          userId: ctx.dbUser.id,
+        },
+        select: { role: true },
+      })
+
+      if (!orgMembership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have access to this project",
+        })
+      }
+
+      // MEMBER role must be an explicit BoardMember
+      if (orgMembership.role === "MEMBER") {
+        const boardMember = await ctx.prisma.boardMember.findUnique({
+          where: {
+            boardId_userId: {
+              boardId: input.id,
+              userId: ctx.dbUser.id,
+            },
+          },
+        })
+
+        if (!boardMember) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have access to this project",
+          })
+        }
+      }
+
       return ctx.prisma.board.findUniqueOrThrow({
         where: { id: input.id },
         include: {
@@ -84,14 +126,21 @@ export const boardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Get the user's first organization
+      // Get the user's organization and verify OWNER/ADMIN role
       const membership = await ctx.prisma.organizationMember.findFirst({
         where: { userId: ctx.dbUser.id },
-        select: { organizationId: true },
+        select: { organizationId: true, role: true },
       })
 
       if (!membership) {
         throw new Error("User has no organization")
+      }
+
+      if (membership.role === "MEMBER") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only owners and admins can create projects",
+        })
       }
 
       return ctx.prisma.board.create({
@@ -209,7 +258,7 @@ export const boardRouter = router({
       if (!callerMembership) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Only admins can manage board members",
+          message: "Only admins can manage project members",
         })
       }
 
@@ -252,7 +301,7 @@ export const boardRouter = router({
       if (!callerMembership) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Only admins can manage board members",
+          message: "Only admins can manage project members",
         })
       }
 

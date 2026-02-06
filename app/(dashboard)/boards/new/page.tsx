@@ -25,7 +25,7 @@ export default function NewBoardPage() {
 
   const createBoard = api.board.create.useMutation({
     onSuccess: (board) => {
-      toast.success("Board created!")
+      toast.success("Project created!")
       router.push(`/boards/${board.id}`)
     },
     onError: (error) => {
@@ -45,16 +45,16 @@ export default function NewBoardPage() {
     <div className="mx-auto max-w-lg p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Create a new board</CardTitle>
+          <CardTitle>Create a new project</CardTitle>
           <CardDescription>
-            Boards help you organize tasks into columns. Default columns (To Do,
+            Projects help you organize tasks into columns. Default columns (To Do,
             In Progress, Done) will be created automatically.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Board name</Label>
+              <Label htmlFor="name">Project name</Label>
               <Input
                 id="name"
                 placeholder="e.g., Sprint 24, Marketing Campaign"
@@ -67,7 +67,7 @@ export default function NewBoardPage() {
               <Label htmlFor="description">Description (optional)</Label>
               <Textarea
                 id="description"
-                placeholder="What is this board for?"
+                placeholder="What is this project for?"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
@@ -83,7 +83,7 @@ export default function NewBoardPage() {
               Cancel
             </Button>
             <Button type="submit" disabled={createBoard.isPending}>
-              {createBoard.isPending ? "Creating..." : "Create Board"}
+              {createBoard.isPending ? "Creating..." : "Create Project"}
             </Button>
           </CardFooter>
         </form>

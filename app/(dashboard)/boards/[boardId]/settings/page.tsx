@@ -55,14 +55,14 @@ export default function BoardSettingsPage() {
   const updateBoard = api.board.update.useMutation({
     onSuccess: () => {
       utils.board.get.invalidate({ id: params.boardId })
-      toast.success("Board updated")
+      toast.success("Project updated")
     },
     onError: (error) => toast.error(error.message),
   })
 
   const archiveBoard = api.board.archive.useMutation({
     onSuccess: () => {
-      toast.success("Board archived")
+      toast.success("Project archived")
       router.push("/boards")
     },
     onError: (error) => toast.error(error.message),
@@ -70,7 +70,7 @@ export default function BoardSettingsPage() {
 
   const deleteBoard = api.board.delete.useMutation({
     onSuccess: () => {
-      toast.success("Board deleted")
+      toast.success("Project deleted")
       router.push("/boards")
     },
     onError: (error) => toast.error(error.message),
@@ -92,7 +92,7 @@ export default function BoardSettingsPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <h1 className="text-2xl font-bold">Board Settings</h1>
+        <h1 className="text-2xl font-bold">Project Settings</h1>
       </div>
 
       <div className="space-y-8">
@@ -111,7 +111,7 @@ export default function BoardSettingsPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Labels</h2>
           <p className="text-sm text-muted-foreground">
-            Manage labels for this board. Labels can be assigned to cards.
+            Manage labels for this project. Labels can be assigned to cards.
           </p>
           <LabelManager boardId={params.boardId} labels={labels} />
         </div>
@@ -145,16 +145,16 @@ export default function BoardSettingsPage() {
           <div className="rounded-lg border border-destructive/30 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Archive this board</p>
+                <p className="text-sm font-medium">Archive this project</p>
                 <p className="text-xs text-muted-foreground">
-                  Hide from the board list. Can be restored later.
+                  Hide from the project list. Can be restored later.
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (confirm("Archive this board?")) {
+                  if (confirm("Archive this project?")) {
                     archiveBoard.mutate({ id: params.boardId })
                   }
                 }}
@@ -165,9 +165,9 @@ export default function BoardSettingsPage() {
             <Separator />
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Delete this board</p>
+                <p className="text-sm font-medium">Delete this project</p>
                 <p className="text-xs text-muted-foreground">
-                  Permanently delete this board and all its data.
+                  Permanently delete this project and all its data.
                 </p>
               </div>
               <Button
@@ -176,7 +176,7 @@ export default function BoardSettingsPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      "Permanently delete this board? This cannot be undone."
+                      "Permanently delete this project? This cannot be undone."
                     )
                   ) {
                     deleteBoard.mutate({ id: params.boardId })
@@ -221,7 +221,7 @@ function BoardGeneralSection({
       <h2 className="text-lg font-semibold">General</h2>
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Board name</label>
+          <label className="text-sm font-medium">Project name</label>
           <Input
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
@@ -497,7 +497,7 @@ function BoardMembersSection({ boardId }: { boardId: string }) {
   const addMember = api.board.addMember.useMutation({
     onSuccess: () => {
       utils.board.listMembers.invalidate({ boardId })
-      toast.success("Member added to board")
+      toast.success("Member added to project")
     },
     onError: (error) => toast.error(error.message),
   })
@@ -505,7 +505,7 @@ function BoardMembersSection({ boardId }: { boardId: string }) {
   const removeMember = api.board.removeMember.useMutation({
     onSuccess: () => {
       utils.board.listMembers.invalidate({ boardId })
-      toast.success("Member removed from board")
+      toast.success("Member removed from project")
     },
     onError: (error) => toast.error(error.message),
   })
@@ -530,9 +530,9 @@ function BoardMembersSection({ boardId }: { boardId: string }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Board Members</h2>
+      <h2 className="text-lg font-semibold">Project Members</h2>
       <p className="text-sm text-muted-foreground">
-        Owners and Admins can always see all boards. Toggle access for Member-role users.
+        Owners and Admins can always see all projects. Toggle access for Member-role users.
       </p>
 
       {isLoading && (
@@ -567,7 +567,7 @@ function BoardMembersSection({ boardId }: { boardId: string }) {
                     variant="secondary"
                     className={roleColors[member.role]}
                   >
-                    All boards
+                    All projects
                   </Badge>
                 ) : member.isBoardMember ? (
                   <Button
@@ -650,7 +650,7 @@ function CustomerAccessSection({
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Customer Access</h2>
       <p className="text-sm text-muted-foreground">
-        Assign a customer to give them read-only access to this board via the
+        Assign a customer to give them read-only access to this project via the
         customer portal.
       </p>
 
@@ -675,7 +675,7 @@ function CustomerAccessSection({
               className="text-xs"
               disabled={unassignBoard.isPending}
               onClick={() => {
-                if (confirm("Unassign this customer from the board?")) {
+                if (confirm("Unassign this customer from the project?")) {
                   unassignBoard.mutate({ boardId })
                 }
               }}
@@ -713,7 +713,7 @@ function CustomerAccessSection({
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Select a customer to assign to this board:
+                Select a customer to assign to this project:
               </p>
               <Select
                 onValueChange={(customerId) =>

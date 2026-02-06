@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
 const navigation = [
-  { name: "Boards", href: "/boards", icon: KanbanSquare },
+  { name: "Projects", href: "/boards", icon: KanbanSquare },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ]

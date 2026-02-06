@@ -21,7 +21,8 @@ import { api } from "@/lib/trpc/client"
 export default function CustomersPage() {
   const utils = api.useUtils()
   const { data: customers = [], isLoading } = api.customer.list.useQuery()
-  const { data: boards = [] } = api.board.list.useQuery()
+  const { data: boardData } = api.board.list.useQuery()
+  const boards = boardData?.boards ?? []
   const [isCreating, setIsCreating] = useState(false)
   const [newName, setNewName] = useState("")
   const [newEmail, setNewEmail] = useState("")
@@ -49,7 +50,7 @@ export default function CustomersPage() {
     onSuccess: () => {
       utils.customer.list.invalidate()
       utils.board.list.invalidate()
-      toast.success("Board assigned")
+      toast.success("Project assigned")
     },
     onError: (error) => toast.error(error.message),
   })
@@ -58,7 +59,7 @@ export default function CustomersPage() {
     onSuccess: () => {
       utils.customer.list.invalidate()
       utils.board.list.invalidate()
-      toast.success("Board unassigned")
+      toast.success("Project unassigned")
     },
     onError: (error) => toast.error(error.message),
   })
@@ -437,7 +438,7 @@ function CustomerCard({
       {/* Assigned boards */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">
-          Assigned boards
+          Assigned projects
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {customer.boards.map((board) => (
@@ -462,7 +463,7 @@ function CustomerCard({
               }
             >
               <SelectTrigger className="h-7 w-36 text-xs">
-                <SelectValue placeholder="Assign board..." />
+                <SelectValue placeholder="Assign project..." />
               </SelectTrigger>
               <SelectContent>
                 {availableBoards.map((board) => (
@@ -477,19 +478,33 @@ function CustomerCard({
         {customer.boards.length === 0 &&
           availableBoards.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              No boards available to assign.
+              No projects available to assign.
             </p>
           )}
       </div>
 
       {/* Portal link */}
-      <div className="text-xs text-muted-foreground">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
         Portal link:{" "}
         <code className="rounded bg-muted px-1 py-0.5">
           {typeof window !== "undefined"
             ? `${window.location.origin}/customer?code=${customer.accessCode}`
             : `/customer?code=${customer.accessCode}`}
         </code>
+        <button
+          className="text-muted-foreground hover:text-foreground"
+          title="Copy portal link"
+          onClick={() => {
+            const url =
+              typeof window !== "undefined"
+                ? `${window.location.origin}/customer?code=${customer.accessCode}`
+                : `/customer?code=${customer.accessCode}`
+            navigator.clipboard.writeText(url)
+            toast.success("Portal link copied")
+          }}
+        >
+          <Copy className="h-3 w-3" />
+        </button>
       </div>
     </div>
   )
