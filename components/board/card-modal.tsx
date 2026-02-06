@@ -492,6 +492,12 @@ function EditableDescription({
   )
 }
 
+const VISIBLE_COMMENTS = 5
+
+function isLongComment(content: string) {
+  return content.length > 280 || content.split("\n").length > 4
+}
+
 function CommentSection({
   cardId,
   comments,
@@ -511,6 +517,8 @@ function CommentSection({
   const utils = api.useUtils()
   const [newComment, setNewComment] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [showAllComments, setShowAllComments] = useState(false)
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
 
   const addComment = api.card.addComment.useMutation({
     onSuccess: () => {
@@ -528,9 +536,33 @@ function CommentSection({
     addComment.mutate({ cardId, content: newComment.trim() })
   }
 
+  const hiddenCount = comments.length - VISIBLE_COMMENTS
+  const visibleComments =
+    showAllComments || comments.length <= VISIBLE_COMMENTS
+      ? comments
+      : comments.slice(-VISIBLE_COMMENTS)
+
+  function toggleExpanded(id: string) {
+    setExpandedComments((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   return (
     <div className="space-y-3">
-      {comments.map((comment) => {
+      {!showAllComments && hiddenCount > 0 && (
+        <button
+          className="text-xs font-medium text-primary hover:underline"
+          onClick={() => setShowAllComments(true)}
+        >
+          {hiddenCount} more comment{hiddenCount !== 1 ? "s" : ""}
+        </button>
+      )}
+
+      {visibleComments.map((comment) => {
         const isCustomerComment = !comment.user && comment.customer
         const contactName = comment.customerContact?.name
         const displayName = isCustomerComment
@@ -542,6 +574,7 @@ function CommentSection({
         const initials = nameForInitials
           ? nameForInitials.split(" ").map((n) => n[0]).join("").toUpperCase()
           : "?"
+        const isExpanded = expandedComments.has(comment.id)
         return (
           <div key={comment.id} className="flex gap-3">
             <Avatar className="h-7 w-7 shrink-0">
@@ -561,7 +594,22 @@ function CommentSection({
                   {format(new Date(comment.createdAt), "MMM d, h:mm a")}
                 </span>
               </div>
-              <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+              <p
+                className={cn(
+                  "text-sm whitespace-pre-wrap",
+                  !isExpanded && isLongComment(comment.content) && "line-clamp-4"
+                )}
+              >
+                {comment.content}
+              </p>
+              {isLongComment(comment.content) && (
+                <button
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => toggleExpanded(comment.id)}
+                >
+                  {isExpanded ? "See less" : "See more"}
+                </button>
+              )}
             </div>
           </div>
         )
