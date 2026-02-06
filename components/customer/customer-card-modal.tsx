@@ -265,7 +265,7 @@ function CustomerCommentSection({
     <div className="space-y-3">
       {!showAllComments && hiddenCount > 0 && (
         <button
-          className="text-xs font-medium text-primary hover:underline"
+          className="text-xs font-medium text-blue-500 hover:underline"
           onClick={() => setShowAllComments(true)}
         >
           {hiddenCount} more comment{hiddenCount !== 1 ? "s" : ""}
@@ -314,7 +314,7 @@ function CustomerCommentSection({
               </p>
               {isLongComment(comment.content) && (
                 <button
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-blue-500 hover:underline"
                   onClick={() => toggleExpanded(comment.id)}
                 >
                   {isExpanded ? "See less" : "See more"}
