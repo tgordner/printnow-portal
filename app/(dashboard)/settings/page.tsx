@@ -43,11 +43,6 @@ export default function SettingsPage() {
       <h1 className="mb-6 text-2xl font-bold">Settings</h1>
 
       <div className="space-y-8">
-        {/* Profile */}
-        {me && <ProfileSection user={me} />}
-
-        <Separator />
-
         {/* Organization */}
         <OrgSection
           name={org.name}
@@ -70,69 +65,6 @@ export default function SettingsPage() {
             <Separator />
             <InviteSection />
           </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ProfileSection({
-  user,
-}: {
-  user: { id: string; name: string | null; email: string }
-}) {
-  const utils = api.useUtils()
-  const [draftName, setDraftName] = useState(user.name ?? "")
-
-  useEffect(() => {
-    setDraftName(user.name ?? "")
-  }, [user.name])
-
-  const updateUser = api.user.update.useMutation({
-    onSuccess: () => {
-      utils.user.me.invalidate()
-      toast.success("Profile updated")
-    },
-    onError: (error) => toast.error(error.message),
-  })
-
-  const hasChanges = draftName.trim() !== (user.name ?? "")
-
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Profile</h2>
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Email</label>
-          <Input value={user.email} disabled />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Display name</label>
-          <Input
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder="Your name"
-          />
-        </div>
-        {hasChanges && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              disabled={updateUser.isPending}
-              onClick={() =>
-                updateUser.mutate({ name: draftName.trim() || undefined })
-              }
-            >
-              Save
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setDraftName(user.name ?? "")}
-            >
-              Cancel
-            </Button>
-          </div>
         )}
       </div>
     </div>

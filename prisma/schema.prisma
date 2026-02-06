@@ -8,21 +8,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================
-// USERS & ORGANIZATIONS
-// ============================================
-
 model Organization {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members   OrganizationMember[]
+  slug      String               @unique
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   boards    Board[]
   customers Customer[]
   invites   Invite[]
+  members   OrganizationMember[]
 }
 
 model OrganizationMember {
@@ -31,35 +26,27 @@ model OrganizationMember {
   userId         String
   role           MemberRole   @default(MEMBER)
   createdAt      DateTime     @default(now())
-
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
 }
 
-enum MemberRole {
-  OWNER
-  ADMIN
-  MEMBER
-}
-
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  name       String?
-  avatarUrl  String?
-  supabaseId String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  memberships    OrganizationMember[]
-  assignedCards  Card[]               @relation("CardAssignees")
-  createdCards   Card[]               @relation("CardCreator")
-  comments       Comment[]
-  sentInvites    Invite[]
-  boardMembers   BoardMember[]
-  activities     Activity[]
+  id            String               @id @default(cuid())
+  email         String               @unique
+  name          String?
+  avatarUrl     String?
+  supabaseId    String               @unique
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  activities    Activity[]
+  boardMembers  BoardMember[]
+  createdCards  Card[]               @relation("CardCreator")
+  comments      Comment[]
+  sentInvites   Invite[]
+  memberships   OrganizationMember[]
+  assignedCards Card[]               @relation("CardAssignees")
 }
 
 model Invite {
@@ -69,51 +56,55 @@ model Invite {
   role           MemberRole   @default(MEMBER)
   invitedById    String
   createdAt      DateTime     @default(now())
-
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invitedBy      User         @relation(fields: [invitedById], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   boards         Board[]      @relation("InviteBoards")
 
   @@unique([organizationId, email])
 }
 
-// ============================================
-// CUSTOMERS (for customer-facing boards)
-// ============================================
-
 model Customer {
-  id             String       @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
   name           String
   email          String
-  accessCode     String       @unique
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  boards         Board[]      @relation("CustomerBoards")
+  accessCode     String            @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  boards         Board[]           @relation("CustomerBoards")
   comments       Comment[]
+  contacts       CustomerContact[]
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
-// ============================================
-// BOARDS, COLUMNS, CARDS
-// ============================================
+model CustomerContact {
+  id         String    @id @default(cuid())
+  customerId String
+  name       String
+  email      String
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  comments   Comment[]
+
+  @@unique([customerId, email])
+}
 
 model Board {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   organizationId String
   customerId     String?
   name           String
   description    String?
-  isArchived     Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer       Customer?    @relation("CustomerBoards", fields: [customerId], references: [id], onDelete: SetNull)
-  columns        Column[]
+  isArchived     Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  customer       Customer?     @relation("CustomerBoards", fields: [customerId], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   members        BoardMember[]
-  invites        Invite[]     @relation("InviteBoards")
+  columns        Column[]
+  invites        Invite[]      @relation("InviteBoards")
 }
 
 model BoardMember {
@@ -121,7 +112,6 @@ model BoardMember {
   boardId   String
   userId    String
   createdAt DateTime @default(now())
-
   board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -136,42 +126,28 @@ model Column {
   color     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards     Card[]
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
 }
 
 model Card {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   columnId    String
   creatorId   String
   title       String
   description String?
   position    Int
   dueDate     DateTime?
-  priority    Priority  @default(NONE)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  creator     User      @relation("CardCreator", fields: [creatorId], references: [id])
-  assignees   User[]    @relation("CardAssignees")
-  comments    Comment[]
-  labels      Label[]   @relation("CardLabels")
+  priority    Priority     @default(NONE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   attachments Attachment[]
+  column      Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  creator     User         @relation("CardCreator", fields: [creatorId], references: [id])
+  comments    Comment[]
+  assignees   User[]       @relation("CardAssignees")
+  labels      Label[]      @relation("CardLabels")
 }
-
-enum Priority {
-  NONE
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-// ============================================
-// SUPPORTING ENTITIES
-// ============================================
 
 model Label {
   id        String   @id @default(cuid())
@@ -179,22 +155,22 @@ model Label {
   name      String
   color     String
   createdAt DateTime @default(now())
-
   cards     Card[]   @relation("CardLabels")
 }
 
 model Comment {
-  id         String    @id @default(cuid())
-  cardId     String
-  userId     String?
-  customerId String?
-  content    String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  card       Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user       User?     @relation(fields: [userId], references: [id])
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  id                String           @id @default(cuid())
+  cardId            String
+  userId            String?
+  content           String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  customerId        String?
+  customerContactId String?
+  card              Card             @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  customerContact   CustomerContact? @relation(fields: [customerContactId], references: [id])
+  user              User?            @relation(fields: [userId], references: [id])
 }
 
 model Attachment {
@@ -202,17 +178,12 @@ model Attachment {
   cardId      String
   name        String
   url         String
-  storagePath String
   size        Int
   mimeType    String
   createdAt   DateTime @default(now())
-
+  storagePath String
   card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
 }
-
-// ============================================
-// ACTIVITY LOG
-// ============================================
 
 model Activity {
   id         String   @id @default(cuid())
@@ -223,6 +194,19 @@ model Activity {
   entityId   String
   metadata   Json?
   createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+}
 
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Priority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }

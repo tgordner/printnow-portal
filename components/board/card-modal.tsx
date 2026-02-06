@@ -504,6 +504,7 @@ function CommentSection({
     createdAt: Date
     user: { id: string; name: string | null; email: string } | null
     customer?: { id: string; name: string } | null
+    customerContact?: { id: string; name: string } | null
   }>
   boardId: string
 }) {
@@ -531,14 +532,16 @@ function CommentSection({
     <div className="space-y-3">
       {comments.map((comment) => {
         const isCustomerComment = !comment.user && comment.customer
+        const contactName = comment.customerContact?.name
         const displayName = isCustomerComment
-          ? comment.customer!.name
+          ? contactName || comment.customer!.name
           : comment.user?.name || comment.user?.email || "Unknown"
-        const initials = isCustomerComment
-          ? comment.customer!.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+        const nameForInitials = isCustomerComment
+          ? contactName || comment.customer!.name
           : comment.user?.name
-            ? comment.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
-            : "?"
+        const initials = nameForInitials
+          ? nameForInitials.split(" ").map((n) => n[0]).join("").toUpperCase()
+          : "?"
         return (
           <div key={comment.id} className="flex gap-3">
             <Avatar className="h-7 w-7 shrink-0">

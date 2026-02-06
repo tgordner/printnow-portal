@@ -47,6 +47,14 @@ export const boardRouter = router({
       return ctx.prisma.board.findUniqueOrThrow({
         where: { id: input.id },
         include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              accessCode: true,
+              _count: { select: { contacts: true } },
+            },
+          },
           columns: {
             orderBy: { position: "asc" },
             include: {

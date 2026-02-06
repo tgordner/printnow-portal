@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Check, Pencil, Plus, Trash2, X } from "lucide-react"
+import { ArrowLeft, Check, Copy, Pencil, Plus, Trash2, Users, X } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -10,6 +10,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { COLUMN_COLORS } from "@/lib/constants"
@@ -114,6 +121,17 @@ export default function BoardSettingsPage() {
           <>
             <Separator />
             <BoardMembersSection boardId={params.boardId} />
+          </>
+        )}
+
+        {/* Customer Access (admin only) */}
+        {isAdmin && (
+          <>
+            <Separator />
+            <CustomerAccessSection
+              boardId={params.boardId}
+              customer={board.customer}
+            />
           </>
         )}
 
@@ -584,6 +602,137 @@ function BoardMembersSection({ boardId }: { boardId: string }) {
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CustomerAccessSection({
+  boardId,
+  customer,
+}: {
+  boardId: string
+  customer: {
+    id: string
+    name: string
+    accessCode: string
+    _count: { contacts: number }
+  } | null
+}) {
+  const utils = api.useUtils()
+  const { data: customers = [] } = api.customer.list.useQuery()
+
+  const assignBoard = api.customer.assignBoard.useMutation({
+    onSuccess: () => {
+      utils.board.get.invalidate({ id: boardId })
+      utils.customer.list.invalidate()
+      toast.success("Customer assigned")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  const unassignBoard = api.customer.unassignBoard.useMutation({
+    onSuccess: () => {
+      utils.board.get.invalidate({ id: boardId })
+      utils.customer.list.invalidate()
+      toast.success("Customer unassigned")
+    },
+    onError: (error) => toast.error(error.message),
+  })
+
+  function copyAccessCode(code: string) {
+    navigator.clipboard.writeText(code)
+    toast.success("Access code copied")
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Customer Access</h2>
+      <p className="text-sm text-muted-foreground">
+        Assign a customer to give them read-only access to this board via the
+        customer portal.
+      </p>
+
+      {customer ? (
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                <Users className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{customer.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {customer._count.contacts} contact
+                  {customer._count.contacts !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              disabled={unassignBoard.isPending}
+              onClick={() => {
+                if (confirm("Unassign this customer from the board?")) {
+                  unassignBoard.mutate({ boardId })
+                }
+              }}
+            >
+              Unassign
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Access code:</span>
+            <div className="flex items-center gap-1.5 rounded border px-2 py-1">
+              <code className="text-xs font-mono">{customer.accessCode}</code>
+              <button
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => copyAccessCode(customer.accessCode)}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Portal link:{" "}
+            <code className="rounded bg-muted px-1 py-0.5">
+              {typeof window !== "undefined"
+                ? `${window.location.origin}/customer/${customer.accessCode}`
+                : `/customer/${customer.accessCode}`}
+            </code>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border p-4">
+          {customers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No customers exist yet. Create one in the Customers page first.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Select a customer to assign to this board:
+              </p>
+              <Select
+                onValueChange={(customerId) =>
+                  assignBoard.mutate({ customerId, boardId })
+                }
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select customer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
     </div>

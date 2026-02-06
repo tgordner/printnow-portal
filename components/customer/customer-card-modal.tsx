@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 interface CustomerCardModalProps {
   cardId: string
   accessCode: string
+  contactId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -35,6 +36,7 @@ interface CustomerCardModalProps {
 export function CustomerCardModal({
   cardId,
   accessCode,
+  contactId,
   open,
   onOpenChange,
 }: CustomerCardModalProps) {
@@ -181,6 +183,7 @@ export function CustomerCardModal({
                 <CustomerCommentSection
                   cardId={cardId}
                   accessCode={accessCode}
+                  contactId={contactId}
                   comments={card.comments}
                 />
               </div>
@@ -195,16 +198,19 @@ export function CustomerCardModal({
 function CustomerCommentSection({
   cardId,
   accessCode,
+  contactId,
   comments,
 }: {
   cardId: string
   accessCode: string
+  contactId?: string
   comments: Array<{
     id: string
     content: string
     createdAt: Date
     user: { id: string; name: string | null; email: string } | null
     customer: { id: string; name: string } | null
+    customerContact: { id: string; name: string } | null
   }>
 }) {
   const utils = api.useUtils()
@@ -224,21 +230,28 @@ function CustomerCommentSection({
 
   function handleSubmit() {
     if (!newComment.trim()) return
-    addComment.mutate({ accessCode, cardId, content: newComment.trim() })
+    addComment.mutate({
+      accessCode,
+      cardId,
+      content: newComment.trim(),
+      contactId,
+    })
   }
 
   return (
     <div className="space-y-3">
       {comments.map((comment) => {
         const isCustomerComment = !comment.user && comment.customer
+        const contactName = comment.customerContact?.name
         const displayName = isCustomerComment
-          ? comment.customer!.name
+          ? contactName || comment.customer!.name
           : comment.user?.name || comment.user?.email || "Unknown"
-        const initials = isCustomerComment
-          ? comment.customer!.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+        const nameForInitials = isCustomerComment
+          ? contactName || comment.customer!.name
           : comment.user?.name
-            ? comment.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
-            : "?"
+        const initials = nameForInitials
+          ? nameForInitials.split(" ").map((n) => n[0]).join("").toUpperCase()
+          : "?"
         return (
           <div key={comment.id} className="flex gap-3">
             <Avatar className="h-7 w-7 shrink-0">

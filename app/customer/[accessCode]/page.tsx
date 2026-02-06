@@ -1,23 +1,132 @@
 "use client"
 
 import { MessageSquare, Paperclip } from "lucide-react"
-import { useParams } from "next/navigation"
-import { useState } from "react"
+import { useParams, useSearchParams } from "next/navigation"
+import { Suspense, useCallback, useEffect, useState } from "react"
 
 import { CustomerCardModal } from "@/components/customer/customer-card-modal"
 import { DueDateBadge } from "@/components/shared/due-date-badge"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { api } from "@/lib/trpc/client"
 import { PRIORITY_CONFIG } from "@/lib/constants"
 
+function getStorageKey(accessCode: string) {
+  return `portal-contact-${accessCode}`
+}
+
+function loadSavedContact(accessCode: string): { contactId: string; email: string; name: string } | null {
+  try {
+    const raw = localStorage.getItem(getStorageKey(accessCode))
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveContact(accessCode: string, contact: { contactId: string; email: string; name: string }) {
+  localStorage.setItem(getStorageKey(accessCode), JSON.stringify(contact))
+}
+
 export default function CustomerBoardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      }
+    >
+      <CustomerBoardContent />
+    </Suspense>
+  )
+}
+
+function CustomerBoardContent() {
   const params = useParams<{ accessCode: string }>()
+  const searchParams = useSearchParams()
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [identifiedContact, setIdentifiedContact] = useState<{
+    contactId: string
+    email: string
+    name: string
+  } | null>(null)
+  const [emailInput, setEmailInput] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [gateChecked, setGateChecked] = useState(false)
+
   const { data, isLoading } = api.customer.getByAccessCode.useQuery({
     accessCode: params.accessCode,
   })
 
-  if (isLoading) {
+  const hasContacts = data?.contacts && data.contacts.length > 0
+
+  const identifyByEmail = useCallback(
+    (email: string): { contactId: string; email: string; name: string } | null => {
+      if (!data?.contacts) return null
+      const match = data.contacts.find(
+        (c) => c.email.toLowerCase() === email.toLowerCase()
+      )
+      if (!match) return null
+      return { contactId: match.id, email: match.email, name: match.name }
+    },
+    [data?.contacts]
+  )
+
+  // Run gate logic once data is loaded
+  useEffect(() => {
+    if (!data || gateChecked) return
+
+    if (!hasContacts) {
+      setGateChecked(true)
+      return
+    }
+
+    // 1. Check ?email= URL param
+    const emailParam = searchParams.get("email")
+    if (emailParam) {
+      const match = identifyByEmail(emailParam)
+      if (match) {
+        saveContact(params.accessCode, match)
+        window.dispatchEvent(new CustomEvent("portal-contact-change"))
+        setIdentifiedContact(match)
+        setGateChecked(true)
+        return
+      }
+    }
+
+    // 2. Check localStorage
+    const saved = loadSavedContact(params.accessCode)
+    if (saved) {
+      // Verify saved contact still exists in data
+      const stillValid = data.contacts.some((c) => c.id === saved.contactId)
+      if (stillValid) {
+        setIdentifiedContact(saved)
+        setGateChecked(true)
+        return
+      }
+    }
+
+    // 3. Show email form
+    setGateChecked(true)
+  }, [data, gateChecked, hasContacts, searchParams, identifyByEmail, params.accessCode])
+
+  function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setEmailError("")
+    const match = identifyByEmail(emailInput.trim())
+    if (match) {
+      saveContact(params.accessCode, match)
+      window.dispatchEvent(new CustomEvent("portal-contact-change"))
+      setIdentifiedContact(match)
+    } else {
+      setEmailError("No contact found with that email address.")
+    }
+  }
+
+  if (isLoading || !gateChecked) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
@@ -39,12 +148,55 @@ export default function CustomerBoardPage() {
     )
   }
 
+  // Email gate: show form if has contacts but none identified
+  if (hasContacts && !identifiedContact) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <div>
+            <h2 className="text-xl font-bold">{data.name}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter your email to continue
+            </p>
+          </div>
+          <form onSubmit={handleEmailSubmit} className="space-y-3">
+            <Input
+              autoFocus
+              type="email"
+              placeholder="you@example.com"
+              value={emailInput}
+              onChange={(e) => {
+                setEmailInput(e.target.value)
+                if (emailError) setEmailError("")
+              }}
+            />
+            {emailError && (
+              <p className="text-sm text-destructive">{emailError}</p>
+            )}
+            <Button type="submit" className="w-full" disabled={!emailInput.trim()}>
+              Continue
+            </Button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">
-        <p className="text-sm text-muted-foreground">
-          Welcome, {data.name}
-        </p>
+        {identifiedContact ? (
+          <div>
+            <p className="text-sm font-medium">
+              Welcome, {identifiedContact.name}
+            </p>
+            <p className="text-xs text-muted-foreground">{data.name}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Welcome, {data.name}
+          </p>
+        )}
       </div>
 
       {data.boards.length === 0 ? (
@@ -150,6 +302,7 @@ export default function CustomerBoardPage() {
         <CustomerCardModal
           cardId={selectedCardId}
           accessCode={params.accessCode}
+          contactId={identifiedContact?.contactId ?? undefined}
           open={!!selectedCardId}
           onOpenChange={(open) => {
             if (!open) setSelectedCardId(null)

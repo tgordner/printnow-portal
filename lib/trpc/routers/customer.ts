@@ -27,6 +27,10 @@ export const customerRouter = router({
         boards: {
           select: { id: true, name: true },
         },
+        contacts: {
+          orderBy: { createdAt: "asc" },
+        },
+        _count: { select: { contacts: true } },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -108,6 +112,60 @@ export const customerRouter = router({
       })
     }),
 
+  // --- Contact management ---
+
+  listContacts: protectedProcedure
+    .input(z.object({ customerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.customerContact.findMany({
+        where: { customerId: input.customerId },
+        orderBy: { createdAt: "asc" },
+      })
+    }),
+
+  addContact: protectedProcedure
+    .input(
+      z.object({
+        customerId: z.string(),
+        name: z.string().min(1).max(100),
+        email: z.string().email(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.customerContact.create({
+        data: {
+          customerId: input.customerId,
+          name: input.name,
+          email: input.email,
+        },
+      })
+    }),
+
+  updateContact: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(100).optional(),
+        email: z.string().email().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input
+      return ctx.prisma.customerContact.update({
+        where: { id },
+        data,
+      })
+    }),
+
+  deleteContact: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.customerContact.delete({
+        where: { id: input.id },
+      })
+    }),
+
   // Public: look up customer by access code (no auth required)
   getByAccessCode: publicProcedure
     .input(z.object({ accessCode: z.string().min(1) }))
@@ -115,6 +173,10 @@ export const customerRouter = router({
       const customer = await ctx.prisma.customer.findUnique({
         where: { accessCode: input.accessCode.toUpperCase() },
         include: {
+          contacts: {
+            where: { isActive: true },
+            orderBy: { name: "asc" },
+          },
           boards: {
             where: { isArchived: false },
             include: {
@@ -140,7 +202,41 @@ export const customerRouter = router({
       return {
         name: customer.name,
         boards: customer.boards,
+        contacts: customer.contacts,
       }
+    }),
+
+  // Public: update own contact profile (name only)
+  updateContactProfile: publicProcedure
+    .input(
+      z.object({
+        accessCode: z.string().min(1),
+        contactId: z.string(),
+        name: z.string().min(1).max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const customer = await ctx.prisma.customer.findUnique({
+        where: { accessCode: input.accessCode.toUpperCase() },
+        select: { id: true },
+      })
+
+      if (!customer) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invalid access code" })
+      }
+
+      const contact = await ctx.prisma.customerContact.findFirst({
+        where: { id: input.contactId, customerId: customer.id },
+      })
+
+      if (!contact) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Contact not found" })
+      }
+
+      return ctx.prisma.customerContact.update({
+        where: { id: input.contactId },
+        data: { name: input.name },
+      })
     }),
 
   // Public: get card details for customer view
@@ -166,6 +262,7 @@ export const customerRouter = router({
             include: {
               user: { select: { id: true, name: true, email: true } },
               customer: { select: { id: true, name: true } },
+              customerContact: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: "asc" },
           },
@@ -193,6 +290,7 @@ export const customerRouter = router({
         accessCode: z.string().min(1),
         cardId: z.string(),
         content: z.string().min(1).max(2000),
+        contactId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -219,14 +317,26 @@ export const customerRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" })
       }
 
+      // Verify contact belongs to this customer if provided
+      if (input.contactId) {
+        const contact = await ctx.prisma.customerContact.findFirst({
+          where: { id: input.contactId, customerId: customer.id },
+        })
+        if (!contact) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid contact" })
+        }
+      }
+
       return ctx.prisma.comment.create({
         data: {
           cardId: input.cardId,
           customerId: customer.id,
+          customerContactId: input.contactId ?? null,
           content: input.content,
         },
         include: {
           customer: { select: { id: true, name: true } },
+          customerContact: { select: { id: true, name: true } },
         },
       })
     }),
