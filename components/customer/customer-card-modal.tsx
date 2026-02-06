@@ -50,7 +50,7 @@ export function CustomerCardModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col p-6 sm:max-w-lg">
+      <SheetContent className="flex w-full flex-col overflow-hidden p-6 sm:max-w-3xl">
         <SheetHeader className="sr-only">
           <SheetTitle>Card Details</SheetTitle>
         </SheetHeader>
