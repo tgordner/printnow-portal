@@ -36,7 +36,7 @@ export default function BoardsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="flex h-full flex-col p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Boards</h1>
         <Link href="/boards/new">
@@ -48,7 +48,7 @@ export default function BoardsPage() {
       </div>
 
       {boards && boards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: "calc(100vh - 12rem)" }}>
+        <div className="flex flex-1 flex-col items-center justify-center text-center">
           <h2 className="text-2xl font-semibold">No boards yet</h2>
           <p className="mt-2 text-base text-muted-foreground">
             Create your first board to get started.
